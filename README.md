@@ -12,7 +12,8 @@ You can get the maximal wait time per DLM lock, this helps you identify which ho
 
 Login one node of the OCFS2 cluster, get the o2locktop scripts from https://github.com/ganghe/o2locktop.  
 Make sure passwordless SSH access between the nodes is set up, and Python interpreter is installed.  
-Launch o2locktop script via the command line, e.g. "o2locktop -n node1:/mnt/shared -n node2 -n node3".  
+Launch o2locktop script via the command line, e.g. "o2locktop -n node1 -n node2 -n node3 /mnt/shared".  
+Type "d" to diplay DLM lock statistics for each node.
 Type "Ctrl+C" or "q" to end o2locltop process.  
 For more information, please see o2locktop help via the command line "o2locktop --help".
 
@@ -45,8 +46,6 @@ Since OCFS2 file system statistics in kernel records the relevant data when appl
 
 ## To do list
 
-Add program version.  
 Add switch to hide/display system file inodes.  
-Add command option to specify how many the inode items to display.  
 Replay o2locktop log file.  
 Simplify o2locktop options, make it more easier to use.  

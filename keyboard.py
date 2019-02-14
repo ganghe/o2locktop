@@ -49,7 +49,7 @@ class Keyboard():
                                     'what':'1'})
                 break
 
-            if c == '1':
+            if c == 'd':
                 printer_queue.put({'msg_type':'kb_hit',
                                     'what':'detial'})
 
