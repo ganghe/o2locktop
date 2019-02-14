@@ -1,0 +1,77 @@
+#!/usr/bin/env python
+#-*- coding: utf-8 -*-
+
+import sys, os
+import termios, fcntl
+import select
+import signal
+import threading
+import time
+from retry import retry
+
+oldterm = None
+oldflags = None
+fd = sys.stdin.fileno()
+
+class Keyboard():
+    def __init__(self):
+        pass
+
+    @retry(10,delay=False)
+    def _getchar(self):    
+        inp, outp, err = select.select([sys.stdin], [], [])
+        c = sys.stdin.read()
+        return c
+
+    def run(self, printer_queue):
+        global oldterm,oldflags
+        oldterm = termios.tcgetattr(fd)
+        oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
+
+        newattr = termios.tcgetattr(fd)
+        newattr[3] = newattr[3] & ~termios.ICANON
+        newattr[3] = newattr[3] & ~termios.ECHO
+        termios.tcsetattr(fd, termios.TCSANOW, newattr)
+
+        fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
+
+        while True:
+            try:
+                c = self._getchar()
+            except Exception as e:
+                printer_queue.put({'msg_type':'quit',
+                                    'what':'1'})
+                print(e)
+                break
+
+            if c == 'q':
+                printer_queue.put({'msg_type':'quit',
+                                    'what':'1'})
+                break
+
+            if c == '1':
+                printer_queue.put({'msg_type':'kb_hit',
+                                    'what':'detial'})
+
+            if c == '2':
+                printer_queue.put({'msg_type':'kb_hit',
+                                    'what':'debug'})
+            time.sleep(0.1)
+
+        # Reset the terminal:
+        reset_terminal()
+
+def reset_terminal():
+    if oldterm:
+        termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
+    if oldflags:
+        fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
+    
+
+def worker(printer_queue):
+    kb = Keyboard()
+    kb.run(printer_queue)
+
+
+if __name__ == '__main__':
+    worker(None)
