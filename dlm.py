@@ -31,6 +31,7 @@ class LockName:
     M    000000 0000000000000005        6434f530
     type  PAD   blockno(hex)            generation(hex)
     [0:1][1:1+6][1+6:1+6+16]            [1+6+16:]
+    not for dentry
     """
 
     def __init__(self, lock_name):
@@ -43,9 +44,13 @@ class LockName:
 
     @property
     def inode_num(self):
-        start, end = 7, 7+16
-        lock_name = self._name
-        return int(lock_name[start : end], 16)
+        if self._name[0] != "N":
+            start, end = 7, 7+16
+            lock_name = self._name
+            return int(lock_name[start : end], 16)
+        # dentry lock
+        else:
+            return int(self._name[-8:], 16)
 
     @property
     def generation(self):
@@ -54,9 +59,9 @@ class LockName:
     @property
     def short_name(self):
         if util.PY2:
-            return "{0:4} {1:12} {2:8}".format(self.lock_type, str(self.inode_num), self.generation)
+            return "{0:4} {1:12}".format(self.lock_type, str(self.inode_num))
         else:
-            return "{:4} {:12} {:8}".format(self.lock_type, str(self.inode_num), self.generation)
+            return "{:4} {:12}".format(self.lock_type, str(self.inode_num))
 
     def __str__(self):
         return self._name
@@ -392,8 +397,8 @@ class LockSet():
         return self.key_index
 
 class LockSetGroup():
-    TITLE_FORMAT = "{0:31}{1:12}{2:12}{3:12}{4:12}{5:12}{6:12}"
-    DATA_FORMAT = "{0:31}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
+    TITLE_FORMAT = "{0:21}{1:12}{2:12}{3:12}{4:12}{5:12}{6:12}"
+    DATA_FORMAT = "{0:21}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
 
     def __init__(self, max_sys_inode_num, debug=False, max_length = 600):
         self.lock_set_list = []
@@ -482,7 +487,7 @@ class LockSetGroup():
         time_stamp = str(util.now())
         top_n_lock_set = self.get_top_n_key_index(top_n, debug=self._debug)
         what = LockSetGroup.TITLE_FORMAT.format(
-            "TYPE INO          GEN", "EX NUM", "EX TIME(us)", "EX AVG(us)",
+            "TYPE INO  ", "EX NUM", "EX TIME(us)", "EX AVG(us)",
             "PR NUM", "PR TIME(us)", "PR AVG(us)")
         lsg_report_simple = ""
         lsg_report_simple += time_stamp + "\n\n"
