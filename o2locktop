@@ -75,18 +75,19 @@ Please read the README.md file for more information.
     if args.help:
         print(usage)
         sys.exit(0)
+    if args.display_len <= 0:
+        util.eprint("o2locktop: error: The length of the line to show must be greater than 0")
+        sys.exit(0)
+    if args.display_len > 50:
+        util.eprint("o2locktop: error: The length of the line to show must be less than 50")
+        sys.exit(0)
     if args.host_list:
         if not args.mount_point:
-            util.eprint("mount point is needed")
+            util.eprint("o2locktop: error: ocfs2 mount point is needed")
+            print(usage)
             sys.exit(0)
         for i in args.host_list:
             node_list.append(i)
-        if args.display_len <= 0:
-            util.eprint("The length of the line to show must be greater than 0")
-            sys.exit(0)
-        if args.display_len > 50:
-            util.eprint("The length of the line to show must be less than 50")
-            sys.exit(0)
 
         return {
                 "mode":"remote",
@@ -99,7 +100,8 @@ Please read the README.md file for more information.
                 }
     else:
         if not args.mount_point:
-            util.eprint("mount point is needed")
+            util.eprint("o2locktop: error: ocfs2 mount point is needed")
+            print(usage)
             sys.exit(0)
         return {
                 "mode":"local",
@@ -116,18 +118,18 @@ def connection_test(nodes,mount_point):
     assert(nodes != None and len(nodes) > 0)
     uuid = util.get_dlm_lockspace_mp(nodes[0], mount_point)    
     if not uuid:
-        util.eprint("can't find the mount point: {}, please cheack and retry".format(mount_point))
+        util.eprint("o2locktop: error: can't find the mount point: {}, please cheack and retry".format(mount_point))
         sys.exit(0)
     for node in nodes[1:]:
         if uuid != util.get_dlm_lockspace_mp(node, mount_point):
-            util.eprint("can't find the shared storage in the cluster")
-            util.eprint("check if the node in the command line has input errors")
+            util.eprint("o2locktop: error: can't find the shared storage in the cluster, "\
+                                    "check if the node in the command line has input errors")
             sys.exit(0) 
 
 def local_test(mount_point):
     uuid = util.get_dlm_lockspace_mp(None, mount_point)    
     if not uuid:
-        util.eprint("can't find the mount point: {}, please cheack and retry".format(mount_point))
+        util.eprint("o2locktop: error: can't find the mount point: {}, please cheack and retry".format(mount_point))
         sys.exit(0)
 
 def main():

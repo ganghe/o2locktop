@@ -163,7 +163,7 @@ def _trans_uuid(uuid):
 def get_dlm_lockspace_max_sys_inode_number(ip, mount_point):
     uuid = _trans_uuid(get_dlm_lockspace_mp(ip, mount_point))
     if not uuid:
-        eprint("can't find the mount point: {}, please cheach and retry".format(mount_point))
+        eprint("o2locktop: error: can't find the mount point: {}, please cheach and retry".format(mount_point))
     cmd = "blkid  | grep {}".format(uuid)
     output = os.popen(cmd)
     output = output.readlines()
