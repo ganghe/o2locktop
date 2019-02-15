@@ -18,7 +18,6 @@ def now():
 def sleep(interval):
     return time.sleep(interval)
 
-
 def uname_r(ip=None):
     prefix = "ssh root@{0} ".format(ip) if ip else ""
     cmd = "uname -r"
@@ -156,11 +155,15 @@ def get_dlm_lockspace_mp(ip, mount_point):
     return None
 
 def _trans_uuid(uuid):
+    if not uuid:
+        return None
     uuid = uuid.lower()
     return "{}-{}-{}-{}-{}".format(uuid[:8],uuid[8:12],uuid[12:16],uuid[16:20],uuid[20:])
 
 def get_dlm_lockspace_max_sys_inode_number(ip, mount_point):
     uuid = _trans_uuid(get_dlm_lockspace_mp(ip, mount_point))
+    if not uuid:
+        eprint("can't find the mount point: {}, please cheach and retry".format(mount_point))
     cmd = "blkid  | grep {}".format(uuid)
     output = os.popen(cmd)
     output = output.readlines()

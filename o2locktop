@@ -12,99 +12,75 @@ import argparse
 import multiprocessing
 import os
 
+VERSION = "o2locktop 1.0.0"
 
 def parse_args():
     description=""
     usage = \
 """
-o2locktop is a tool used to tell which inode is most busy it works like linux top command
-This tool supports both local and remote monitoring your filesystem
+Usage: o2locktop [OPTIONS] MOUNTPOINT
+       o2locktop -h|--help
+       o2locktop -V|--version
+[OPTIONS] can be:
+       -o log file path
+       -n other node IP/hostname
+       -l number of lines to display
 
-REMOTE MODE:
-  o2locktop [-o LOG_FILE_PATH] [-l LINES_TO_SHOW] -n <NODE_IP>:<MOUNT_POINT> -n <NODE_IP> 
+Monitor the MOUNTPOINT OCFS2 DLM lock statistics. 
+Make sure passwordless SSH access between the nodes is set up.
+Launch o2locktop script like the below command line, 
+e.g. remote mode: "o2locktop -n node1 -n node2 -n node3 /mnt/shared".
+     local mode : "o2locktop /mnt/shared".
 
-LOCAL MODE:
-  o2locktop [-o LOG_FILE_PATH] [-l LINES_TO_SHOW] <MOUNT_POINT>
+Controls: 
+Type "d" to diplay DLM lock statistics for each node.
+Type "Ctrl+C" or "q" to exit o2locltop process.
 
-SHOW VERSION
-  o2locktop -V|-v|--version
-
-Running in remote mode allows users run out of or inside of your cluster.
-Use -n to specify the remote ip or hostname used for ssh
-
-  1. copy ssh pub key to remote host
-
-    (1). ssh-copy-id root@192.168.1.1
-
-    (2). ssh-copy-id root@192.168.1.2
-
-  2. run o2locktop and use ":" to specify a combination of a node and a mount point on it
-
-    o2locktop  -o /path/to/test.log -n 192.168.1.1 -n 192.168.1.2:/mnt/ocfs2
-
-o2locktop also supports local mode, like the following
-
-    o2locktop -o /path/to/test.log /mnt/ocfs2
-
-NOTICE:
-
-1. When running, press '1' to see what is happening on each node :)
-
-2. When running, Press 'q' or 'Ctrl-c' to exit gracefully
-
-MORE:
-
-Now, o2locktop can only shows the inode number of the busy files, you should help yourself to
-find the path corresponding to the inode number.
+Suggestion:
+Please read the README.md file for more information.
 """
-    parser = argparse.ArgumentParser(description=description, usage=usage, prog='o2locktop')
+    parser = argparse.ArgumentParser(description=description, usage=None, prog='o2locktop', add_help=False)
     parser.add_argument('-n', metavar='host',
                         dest='host_list', action='append',
                         help='node address used for ssh')
 
     parser.add_argument('-o', metavar='log', dest='log',
-                        action='store', help='log path')
+                        action='store',
+                        help='log path')
 
     parser.add_argument('-l', metavar='display length', dest='display_len', 
                         default=10,type=int,
-                        action='store', help='the line of the lock to show, default is 10')
+                        action='store',
+                        help='the line of the lock to show, default is 10')
 
-    parser.add_argument('-V','-v','--version',action="store_true", 
+    parser.add_argument('-V','--version',action="store_true", 
                         help='current version of o2locktop')
 
-    parser.add_argument('-d','--debug',action="store_true", 
+    parser.add_argument('-d','--debug',action="store_true",
                         help='show all the inode,include the system inode number')
 
-    parser.add_argument('local_mount', nargs='?',
-                        help='local mount point like /mnt')
+    parser.add_argument('mount_point', nargs='?',
+                        help='mount point like /mnt')
 
+    parser.add_argument('-h','--help',action="store_true", 
+                        help='show this help message and exit')
 
     args = parser.parse_args()
-    mount_node, mount_point = None, None
 
     node_list = []
     met_colon = False
     if args.version:
-        print("o2locktop 1.0.0")
+        print(VERSION)
+        sys.exit(0)
+    if args.help:
+        print(usage)
         sys.exit(0)
     if args.host_list:
-        for i in args.host_list:
-
-            if ":" in i:
-                if met_colon:
-                    util.eprint("Respecify mount point: " + i)
-                    sys.exit(0)
-                try:
-                    mount_node, mount_point = i.split(':')
-                    node_list.append(mount_node)
-                except:
-                    util.eprint("Error parameter: " + i)
-                    sys.exit(0)
-            else:
-                node_list.append(i)
-        if args.local_mount:
-            util.eprint("Local mount point is not needed")
+        if not args.mount_point:
+            util.eprint("mount point is needed")
             sys.exit(0)
+        for i in args.host_list:
+            node_list.append(i)
         if args.display_len <= 0:
             util.eprint("The length of the line to show must be greater than 0")
             sys.exit(0)
@@ -114,18 +90,20 @@ find the path corresponding to the inode number.
 
         return {
                 "mode":"remote",
-                "mount_node" : mount_node,
-                "mount_point" : mount_point,
+                "mount_node" : node_list[0],
+                "mount_point" : args.mount_point,
                 "node_list" : node_list,
                 "log" : args.log,
                 "display_len" : args.display_len,
                 "debug" : args.debug
                 }
-    elif args.local_mount:
-        mount_point = args.local_mount
+    else:
+        if not args.mount_point:
+            util.eprint("mount point is needed")
+            sys.exit(0)
         return {
                 "mode":"local",
-                "mount_point" : args.local_mount,
+                "mount_point" : args.mount_point,
                 "log" : args.log,
                 "display_len" : args.display_len,
                 "debug" : args.debug
@@ -134,20 +112,41 @@ find the path corresponding to the inode number.
     parser.print_help()
     sys.exit(0)
 
+def connection_test(nodes,mount_point):
+    assert(nodes != None and len(nodes) > 0)
+    uuid = util.get_dlm_lockspace_mp(nodes[0], mount_point)    
+    if not uuid:
+        util.eprint("can't find the mount point: {}, please cheack and retry".format(mount_point))
+        sys.exit(0)
+    for node in nodes[1:]:
+        if uuid != util.get_dlm_lockspace_mp(node, mount_point):
+            util.eprint("can't find the shared storage in the cluster")
+            util.eprint("check if the node in the command line has input errors")
+            sys.exit(0) 
+
+def local_test(mount_point):
+    uuid = util.get_dlm_lockspace_mp(None, mount_point)    
+    if not uuid:
+        util.eprint("can't find the mount point: {}, please cheack and retry".format(mount_point))
+        sys.exit(0)
+
 def main():
     args = parse_args()
     log = args["log"]
     display_len = args["display_len"] 
     debug = args["debug"]
+    
 
     if args['mode'] == "remote":
-        nodes = args["node_list"]
         mount_host, mount_point = args["mount_node"], args["mount_point"]
+        nodes = args["node_list"]
+        connection_test(nodes, mount_point)
         lock_space_str = util.get_dlm_lockspace_mp(mount_host, mount_point)
         max_sys_inode_num = util.get_dlm_lockspace_max_sys_inode_number(mount_host, mount_point)
         mount_info = ':'.join([mount_host, mount_point])
     elif args['mode'] == "local":
         mount_point = args["mount_point"]
+        local_test(mount_point)
         lock_space_str = util.get_dlm_lockspace_mp(None, mount_point)
         max_sys_inode_num = util.get_dlm_lockspace_max_sys_inode_number(None, mount_point)
         mount_info = mount_point
