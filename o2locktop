@@ -24,19 +24,19 @@ Usage: o2locktop [OPTIONS] MOUNTPOINT
        o2locktop -V|--version
 [OPTIONS] can be:
        -o log file path
-       -n other node IP/hostname
-       -l number of lines to display
+       -n ocfs2 node IP/hostname
+       -l number of lock records to display
        -d with -d, print the system inode information
 
-Monitor the MOUNTPOINT OCFS2 DLM lock statistics. 
+Monitor OCFS2 DLM lock statistics at the MOUNTPOINT path.
 Make sure passwordless SSH access between the nodes is set up.
-Launch o2locktop script like the below command line, 
-e.g. remote mode: "o2locktop -n node1 -n node2 -n node3 /mnt/shared".
-     local mode : "o2locktop /mnt/shared".
+Launch o2locktop script like the below command line, e.g.
+remote mode: "o2locktop -n node1 -n node2 -n node3 /mnt/shared"
+local mode: "o2locktop /mnt/shared"
 
 Controls: 
 Type "d" to diplay DLM lock statistics for each node.
-Type "Ctrl+C" or "q" to exit o2locltop process.
+Type "Ctrl+C" or "q" to exit o2locktop process.
 
 Suggestion:
 Please read the README.md file for more information.
@@ -51,9 +51,9 @@ Please read the README.md file for more information.
                         help='log path')
 
     parser.add_argument('-l', metavar='display length', dest='display_len', 
-                        default=10,type=int,
+                        default=30,type=int,
                         action='store',
-                        help='the line of the lock to show, default is 10')
+                        help='number of lock records to display, the default is 30')
 
     parser.add_argument('-V','--version',action="store_true", 
                         help='current version of o2locktop')
