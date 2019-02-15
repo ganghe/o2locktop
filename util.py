@@ -158,13 +158,13 @@ def _trans_uuid(uuid):
     if not uuid:
         return None
     uuid = uuid.lower()
-    return "{}-{}-{}-{}-{}".format(uuid[:8],uuid[8:12],uuid[12:16],uuid[16:20],uuid[20:])
+    return "{0}-{1}-{2}-{3}-{4}".format(uuid[:8],uuid[8:12],uuid[12:16],uuid[16:20],uuid[20:])
 
 def get_dlm_lockspace_max_sys_inode_number(ip, mount_point):
     uuid = _trans_uuid(get_dlm_lockspace_mp(ip, mount_point))
     if not uuid:
-        eprint("o2locktop: error: can't find the mount point: {}, please cheach and retry".format(mount_point))
-    cmd = "blkid  | grep {}".format(uuid)
+        eprint("o2locktop: error: can't find the mount point: {0}, please cheach and retry".format(mount_point))
+    cmd = "blkid  | grep {0}".format(uuid)
     output = os.popen(cmd)
     output = output.readlines()
     
@@ -175,7 +175,7 @@ def get_dlm_lockspace_max_sys_inode_number(ip, mount_point):
     else:
         return None
     # TODO:fix shell
-    cmd = "debugfs.ocfs2 -R \"ls //\" {}".format(filesystem)
+    cmd = "debugfs.ocfs2 -R \"ls //\" {0}".format(filesystem)
     output = os.popen(cmd)
     output = output.readlines()
     if len(output) > 0:
