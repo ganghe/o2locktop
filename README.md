@@ -44,11 +44,11 @@ OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman
 There are basically two ways of authenticating user login with OpenSSH server: password authentication and public key-based authentication. The latter is also known as passwordless SSH login because you don't have to enter your password.  
 Simple steps to set up passwordless SSH login are as below,  
 Generate a public/private keypair on your Linux server,  
-  # ssh-keygen  
+  \# ssh-keygen  
 Upload your public key to remote Linux server,  
-  # ssh-copy-id remote-user@server-ip  
+  \# ssh-copy-id remote-user@server-ip  
 Check if passwordless SSH login works,  
-  # ssh remote-user@server-ip  
+  \# ssh remote-user@server-ip  
 
 ## Known limitations
 
