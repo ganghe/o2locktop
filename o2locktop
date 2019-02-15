@@ -26,6 +26,7 @@ Usage: o2locktop [OPTIONS] MOUNTPOINT
        -o log file path
        -n other node IP/hostname
        -l number of lines to display
+       -d with -d, print the system inode information
 
 Monitor the MOUNTPOINT OCFS2 DLM lock statistics. 
 Make sure passwordless SSH access between the nodes is set up.

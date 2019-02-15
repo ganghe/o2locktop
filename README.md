@@ -22,7 +22,6 @@ For more information, please see o2locktop help via the command line "o2locktop 
 o2locktop displays columns for number of lock acquisition and wait time by each inode during the sampling period, the output is refreshed every 5 seconds, the records are sorted according to DLM EX/PR lock wait time.  
 TYPE column represents which DLM lock type, e.g. 'M' -> inode meta data lock, 'W' -> inode file data write lock, 'O' -> inode file open lock, etc.  
 INO column lists inode number.  
-GEN column lists inode generation.  
 EX NUM column represents number of EX(write) lock acquisition.  
 EX TIME column represents the maximal wait time before get EX lock.  
 EX AVG column represents the average wait time before get EX lock.  
