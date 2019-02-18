@@ -28,9 +28,8 @@ Usage: o2locktop [OPTIONS] MOUNTPOINT
        -d		print the meta-file lock records
 
 Monitor OCFS2 DLM lock statistics at the MOUNTPOINT path.
-Launch o2locktop script like the below command line, e.g.
-remote mode: "o2locktop -n node1 -n node2 -n node3 /mnt/shared"
-local mode:  "o2locktop /mnt/shared"
+Launch o2locktop script like the below command line,
+e.g. "o2locktop -n node1 -n node2 -n node3 /mnt/shared"
 
 Controls: 
 Type "d" to diplay DLM lock statistics for each node.
@@ -38,7 +37,7 @@ Type "Ctrl+C" or "q" to exit o2locktop process.
 
 Notes:
 The MOUNTPOINT path is the mount point of the first OCFS2 node in the parameter list.
-Passwordless SSH access between the nodes must be set up before using o2locktop.
+Passwordless SSH access between the OCFS2 nodes and o2locktop node must be set up.
 Please read the README.md file for more information.
 """
     parser = argparse.ArgumentParser(description=description, usage=None, prog='o2locktop', add_help=False)
