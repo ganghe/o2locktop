@@ -12,8 +12,7 @@ import argparse
 import multiprocessing
 import os
 import time
-
-VERSION = "o2locktop 1.0.0"
+import config
 
 def parse_args():
     description=""
@@ -73,7 +72,7 @@ Please read the README.md file for more information.
     node_list = []
     met_colon = False
     if args.version:
-        print(VERSION)
+        print(config.VERSION)
         sys.exit(0)
     if args.help:
         print(usage)

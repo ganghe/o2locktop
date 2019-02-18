@@ -350,6 +350,7 @@ class LockSet():
 
             res_ex["total_time"] += ex_total_time
             res_ex["total_num"] += ex_total_num
+            config.ex_locks += ex_total_num
 
 
             pr_total_time, pr_total_num, pr_key_index = \
@@ -357,6 +358,7 @@ class LockSet():
 
             res_pr["total_time"] += pr_total_time
             res_pr["total_num"] += pr_total_num
+            config.pr_locks += pr_total_num
 
             node_detail_format = LockSetGroup.DATA_FORMAT
             node_detail_str = node_detail_format.format(
@@ -400,11 +402,12 @@ class LockSetGroup():
     TITLE_FORMAT = "{0:21}{1:12}{2:12}{3:12}{4:12}{5:12}{6:12}"
     DATA_FORMAT = "{0:21}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
 
-    def __init__(self, max_sys_inode_num, debug=False, max_length = 600):
+    def __init__(self, max_sys_inode_num, lock_space, max_length = 600):
         self.lock_set_list = []
         #self.lock_name_to_lock_set = {}
         self._max_sys_inode_num = max_sys_inode_num 
-        self._debug = debug
+        self.lock_space = lock_space
+        self._debug = self.lock_space._debug
         self._sort_flag = False
         self._max_length = max_length
 
@@ -485,12 +488,15 @@ class LockSetGroup():
     def report_once(self, top_n):
         self.sort_flag = False
         time_stamp = str(util.now())
+        if '.' in time_stamp:
+            time_stamp = time_stamp.split('.')[0]
         top_n_lock_set = self.get_top_n_key_index(top_n, debug=self._debug)
         what = LockSetGroup.TITLE_FORMAT.format(
             "TYPE INO  ", "EX NUM", "EX TIME(us)", "EX AVG(us)",
             "PR NUM", "PR TIME(us)", "PR AVG(us)")
         lsg_report_simple = ""
-        lsg_report_simple += time_stamp + "\n\n"
+        lsg_report_simple += time_stamp + " total: {0}, ex locks: {1}, pr locks: {2}\n"
+        lsg_report_simple += "lock type: {3}\n\n"
         lsg_report_simple += what + "\n"
 
         lsg_report_detailed = lsg_report_simple
@@ -499,6 +505,21 @@ class LockSetGroup():
             lock_set_report = lock_set.report_once()
             lsg_report_simple += lock_set_report['simple'] + '\n'
             lsg_report_detailed += lock_set_report['detailed'] + '\n'
+        types = ""
+        for key,value in self.lock_space._lock_types.items():
+            types += "{} {}, ".format(key, value)
+        types = types[:-2]
+        lsg_report_simple = lsg_report_simple.format(config.ex_locks + config.pr_locks,
+                                                     config.ex_locks,
+                                                     config.pr_locks,
+                                                     types)
+        lsg_report_detailed = lsg_report_detailed.format(config.ex_locks + config.pr_locks,
+                                                         config.ex_locks,
+                                                         config.pr_locks,
+                                                         types)
+        self.lock_space._lock_types = {}
+        config.ex_locks = 0
+        config.pr_locks = 0
 
         return {"simple": lsg_report_simple, "detailed": lsg_report_detailed}
 
@@ -542,6 +563,7 @@ class Node:
         lock = self._locks[shot_name]
         lock.append(shot)
         self.lock_space.add_lock_name(shot_name)
+        self.lock_space.add_lock_type(shot_name)
     '''
     def process_one_shot(self, raw_string):
         shot  = Shot(raw_string)
@@ -613,6 +635,7 @@ class LockSpace:
         self._name = lock_space
         self._nodes = {} #node_list[i] : Node
         self._lock_names = []
+        self._lock_types = {}
         self.should_stop = False
         self._thread_list = []
         if node_name_list is None:
@@ -685,14 +708,22 @@ class LockSpace:
         return lock_set
 
     def add_lock_name(self, lock_name):
-        with self._mutex: 
+        with self._mutex:
             if lock_name in self._lock_names:
                 return
             self._lock_names.append(lock_name)
 
+    def add_lock_type(self, lock_name):
+        with self._mutex:
+            if lock_name.lock_type in self._lock_types.keys():
+                self._lock_types[lock_name.lock_type] += 1
+            else:
+                self._lock_types[lock_name.lock_type] = 1
+
+
     def report_once(self):
         lock_names = self._lock_names
-        lsg = LockSetGroup(self._max_sys_inode_num, self._debug)
+        lsg = LockSetGroup(self._max_sys_inode_num, self)
         for lock_name in lock_names:
             lock_set = self.lock_name_to_lock_set(lock_name)
             # change append method
