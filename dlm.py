@@ -506,8 +506,8 @@ class LockSetGroup():
             lsg_report_simple += lock_set_report['simple'] + '\n'
             lsg_report_detailed += lock_set_report['detailed'] + '\n'
         types = ""
-        for key,value in self.lock_space._lock_types.items():
-            types += "{} {}, ".format(key, value)
+        for key,value in sorted(self.lock_space._lock_types.items(),key = lambda x:x[1], reverse = True):
+            types += "{0} {1}, ".format(key, value)
         types = types[:-2]
         lsg_report_simple = lsg_report_simple.format(config.ex_locks + config.pr_locks,
                                                      config.ex_locks,

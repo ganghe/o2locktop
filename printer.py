@@ -42,6 +42,7 @@ class Printer():
         assert(mode in [SIMPLE_DISPLAY, DETAILED_DISPLAY])
         self.display_mode = mode
 
+    @retry(10)
     def run(self, printer_queue, **kargs):
         self.prelude = "{0} {1} lockspace: {2}".format(config.VERSION, kargs['mount_info'], config.UUID)
 
