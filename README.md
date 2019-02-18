@@ -56,6 +56,5 @@ Since OCFS2 file system statistics in kernel records the relevant data when appl
 
 ## To do list
 
-Add switch to hide/display system file inodes.  
 Replay o2locktop log file.  
-Simplify o2locktop options, make it more easier to use.  
+If the ocfs2 node hostnames are not specified, o2locktop can automatically discover the hosts in the cluster.  
