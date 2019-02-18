@@ -51,9 +51,9 @@ Please read the README.md file for more information.
                         help='log path')
 
     parser.add_argument('-l', metavar='display length', dest='display_len', 
-                        default=30,type=int,
+                        default=15,type=int,
                         action='store',
-                        help='number of lock records to display, the default is 30')
+                        help='number of lock records to display, the default is 15')
 
     parser.add_argument('-V','--version',action="store_true", 
                         help='current version of o2locktop')
