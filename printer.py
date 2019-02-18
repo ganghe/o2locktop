@@ -43,7 +43,7 @@ class Printer():
         self.display_mode = mode
 
     def run(self, printer_queue, **kargs):
-        self.prelude = kargs['mount_info']
+        self.prelude = "{0} {1} lockspace: {2}".format(config.VERSION, kargs['mount_info'], config.UUID)
 
         if self.log:
             self.log.write(self.prelude)

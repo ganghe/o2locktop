@@ -9,6 +9,7 @@ import pdb
 import os
 import sys
 import signal
+import config
 
 PY2 = (sys.version_info[0] == 2)
 
@@ -151,6 +152,8 @@ def get_dlm_lockspace_mp(ip, mount_point):
     sh = shell.shell(prefix + cmd)
     output = sh.output()
     if (len(output) == 1):
+        if config.UUID == None or config.UUID == "":
+            config.UUID = output[0].split()[1]
         return output[0].split()[1]
     return None
 
