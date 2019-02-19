@@ -8,6 +8,7 @@ import signal
 import threading
 import time
 from retry import retry
+import config
 
 oldterm = None
 oldflags = None
@@ -34,6 +35,7 @@ class Keyboard():
         termios.tcsetattr(fd, termios.TCSANOW, newattr)
 
         fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
+        os.system('setterm -cursor off')
 
         while True:
             try:
@@ -50,8 +52,14 @@ class Keyboard():
                 break
 
             if c == 'd':
-                printer_queue.put({'msg_type':'kb_hit',
-                                    'what':'detial'})
+                rows, cols = os.popen('stty size', 'r').read().split()
+                if int(cols) < config.COLUMNS:
+                    rows = (int(rows)//2 - 4)
+                else:
+                    rows = (int(rows) - 6)
+                    printer_queue.put({'msg_type':'kb_hit',
+                                       'what':'detial',
+                                       'rows':rows})
 
             if c == '2':
                 printer_queue.put({'msg_type':'kb_hit',
@@ -66,6 +74,7 @@ def reset_terminal():
         termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
     if oldflags:
         fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
+    os.system('setterm -cursor on')
     
 
 def worker(printer_queue):

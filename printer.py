@@ -20,13 +20,18 @@ class Printer():
             self.log = open(log, 'w')
         self.prelude = None
     @retry(10)
-    def _refresh(self):
+    def _refresh(self,rows):
         if self.content:
             if(config.clear):
                 util.clear_screen()
             if self.prelude:
                 print(self.prelude)
-            print(self.content[self.display_mode])
+            if rows == 0:
+                print(self.content[self.display_mode])
+            else:
+                for i in self.content[self.display_mode].split('\n')[:rows+4]:
+                    print(i)
+
                 
 
     def activate(self, simple_content, detailed_content):
@@ -55,14 +60,14 @@ class Printer():
                 what = obj['what']
                 if what == 'detial':
                     self.toggle_display_mode()
-                    self._refresh()
+                    self._refresh(obj['rows'])
                 # TODO
                 if what == 'debug':
                     pass
                     
             elif msg_type == 'new_content':
                 self.activate(obj['simple'], obj["detailed"])
-                self._refresh()
+                self._refresh(obj['rows'])
                 if self.log:
                     self.log.write(self.content[self.display_mode])
                     self.log.write('\n')
