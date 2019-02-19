@@ -24,8 +24,8 @@ Usage: o2locktop [OPTIONS] MOUNTPOINT
 [OPTIONS] can be:
        -o file		save the log to the given file
        -n hostname	specify the hostname of the OCFS2 node
-       -l number	specify the number of lock records to display
-       -d		print the meta-file lock records
+       -l number	specify the number of lock resource lines to display
+       -d		display the meta-file lock resources
 
 Monitor OCFS2 DLM lock statistics at the MOUNTPOINT path.
 Launch o2locktop script like the below command line,
