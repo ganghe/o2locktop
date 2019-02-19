@@ -11,6 +11,7 @@ import util
 import config
 import keyboard
 import time
+import os
 
 # cat  -----  output of one time execution of "cat locking_stat"
                 # one cat contains multiple Shot(es)
@@ -471,6 +472,13 @@ class LockSetGroup():
             self.lock_set_list.append(lock_set)
 
     def get_top_n_key_index(self, n, debug=False):
+        if n == None:
+            rows, cols = os.popen('stty size', 'r').read().split()
+            if int(cols) < config.COLUMNS:
+                n = (int(rows)//2 - 4)
+            else:
+                n = (int(rows) - 6)
+            config.ROWS = n
         if self._sort_flag == False:
             self.lock_set_list.sort(key=lambda x:x.key_index, reverse=True)
         if debug:
@@ -506,6 +514,8 @@ class LockSetGroup():
             lsg_report_simple += lock_set_report['simple'] + '\n'
             lsg_report_detailed += lock_set_report['detailed'] + '\n'
         types = ""
+        lsg_report_simple = lsg_report_simple[:-1]
+        lsg_report_detailed = lsg_report_detailed[:-1]
         for key,value in sorted(self.lock_space._lock_types.items(),key = lambda x:x[1], reverse = True):
             types += "{0} {1}, ".format(key, value)
         types = types[:-2]
@@ -669,7 +679,8 @@ class LockSpace:
             printer_queue.put(
                             {'msg_type':'new_content',
                             'simple':lock_space_report['simple'],
-                            'detailed':lock_space_report['detailed'] }
+                            'detailed':lock_space_report['detailed'],
+                            'rows':config.ROWS}
                             )
             end = time.time()
             new_interval = interval - (end - start)

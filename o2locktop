@@ -50,7 +50,7 @@ Please read the README.md file for more information.
                         help='log path')
 
     parser.add_argument('-l', metavar='display length', dest='display_len', 
-                        default=15,type=int,
+                        type=int,
                         action='store',
                         help='number of lock records to display, the default is 15')
 
@@ -76,11 +76,8 @@ Please read the README.md file for more information.
     if args.help:
         print(usage)
         sys.exit(0)
-    if args.display_len <= 0:
+    if args.display_len != None and args.display_len <= 0:
         util.eprint("o2locktop: error: The length of the line to show must be greater than 0")
-        sys.exit(0)
-    if args.display_len > 50:
-        util.eprint("o2locktop: error: The length of the line to show must be less than 50")
         sys.exit(0)
     if args.host_list:
         if not args.mount_point:
