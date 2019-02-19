@@ -57,9 +57,9 @@ class Keyboard():
                     rows = (int(rows)//2 - 4)
                 else:
                     rows = (int(rows) - 6)
-                    printer_queue.put({'msg_type':'kb_hit',
-                                       'what':'detial',
-                                       'rows':rows})
+                printer_queue.put({'msg_type':'kb_hit',
+                                   'what':'detial',
+                                   'rows':rows})
 
             if c == '2':
                 printer_queue.put({'msg_type':'kb_hit',
