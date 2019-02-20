@@ -363,7 +363,10 @@ class LockSet():
             res_pr["total_num"] += pr_total_num
             config.pr_locks += pr_total_num
 
-            node_detail_format = "{0:25}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
+            if util.PY2:
+                node_detail_format = "{0:25}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
+            else:
+                node_detail_format = "{0:21}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
             temp_index += 1
             if temp_index < node_to_lock_dict_len:
                 node_detail_str = node_detail_format.format(
