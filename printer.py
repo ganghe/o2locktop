@@ -52,7 +52,7 @@ class Printer():
         self.prelude = "{0} {1} lockspace: {2}".format(config.VERSION, kargs['mount_info'], config.UUID)
 
         if self.log:
-            self.log.write(self.prelude)
+            self.log.write(self.prelude+"\n")
         while not self.should_stop:
             obj = printer_queue.get()
             msg_type = obj['msg_type']
@@ -70,7 +70,7 @@ class Printer():
                 self._refresh(obj['rows'])
                 if self.log:
                     self.log.write(self.content[self.display_mode])
-                    self.log.write('\n')
+                    self.log.write('\n\n\n')
                     self.log.flush()
             elif msg_type == 'quit':
                 break

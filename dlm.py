@@ -344,6 +344,8 @@ class LockSet():
         res_pr = {"total_time":0,"total_num":0, "key_index":0}
         body = ""
 
+        node_to_lock_dict_len = len(self.node_to_lock_dict)
+        temp_index = 0
         for _node, _lock in self.node_to_lock_dict.items():
 
             ex_total_time, ex_total_num, ex_key_index = \
@@ -361,11 +363,21 @@ class LockSet():
             res_pr["total_num"] += pr_total_num
             config.pr_locks += pr_total_num
 
-            node_detail_format = LockSetGroup.DATA_FORMAT
-            node_detail_str = node_detail_format.format(
-                    _node.name,
-                    ex_total_num, ex_total_time, ex_key_index,
-                    pr_total_num, pr_total_time, pr_key_index)
+            if util.PY2:
+                node_detail_format = "{0:25}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
+            else:
+                node_detail_format = "{0:21}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
+            temp_index += 1
+            if temp_index < node_to_lock_dict_len:
+                node_detail_str = node_detail_format.format(
+                        "├─"+_node.name,
+                        ex_total_num, ex_total_time, ex_key_index,
+                        pr_total_num, pr_total_time, pr_key_index)
+            else:
+                node_detail_str = node_detail_format.format(
+                        "└─"+_node.name,
+                        ex_total_num, ex_total_time, ex_key_index,
+                        pr_total_num, pr_total_time, pr_key_index)
 
             if body == "":
                 body = node_detail_str
@@ -516,8 +528,11 @@ class LockSetGroup():
         types = ""
         lsg_report_simple = lsg_report_simple[:-1]
         lsg_report_detailed = lsg_report_detailed[:-1]
+        total_value = 0
         for key,value in sorted(self.lock_space._lock_types.items(),key = lambda x:x[1], reverse = True):
             types += "{0} {1}, ".format(key, value)
+            total_value += value
+        types = "total {0}, ".format(total_value) + types
         types = types[:-2]
         lsg_report_simple = lsg_report_simple.format(config.ex_locks + config.pr_locks,
                                                      config.ex_locks,
