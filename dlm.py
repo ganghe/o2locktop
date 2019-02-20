@@ -363,7 +363,7 @@ class LockSet():
 
             node_detail_format = LockSetGroup.DATA_FORMAT
             node_detail_str = node_detail_format.format(
-                    _node.name,
+                    "  "+_node.name,
                     ex_total_num, ex_total_time, ex_key_index,
                     pr_total_num, pr_total_time, pr_key_index)
 
@@ -516,8 +516,11 @@ class LockSetGroup():
         types = ""
         lsg_report_simple = lsg_report_simple[:-1]
         lsg_report_detailed = lsg_report_detailed[:-1]
+        total_value = 0
         for key,value in sorted(self.lock_space._lock_types.items(),key = lambda x:x[1], reverse = True):
             types += "{0} {1}, ".format(key, value)
+            total_value += value
+        types = "total {0}, ".format(total_value) + types
         types = types[:-2]
         lsg_report_simple = lsg_report_simple.format(config.ex_locks + config.pr_locks,
                                                      config.ex_locks,
