@@ -38,6 +38,7 @@ Type "Ctrl+C" or "q" to exit o2locktop process.
 Notes:
 The MOUNTPOINT path is the mount point of the first OCFS2 node in the parameter list.
 Passwordless SSH access between the OCFS2 nodes and o2locktop node must be set up.
+The lock resources are sorted according to DLM EX/PR lock average wait time.
 Please read the README.md file for more information.
 """
     parser = argparse.ArgumentParser(description=description, usage=None, prog='o2locktop', add_help=False)
