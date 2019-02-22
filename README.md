@@ -44,23 +44,19 @@ OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman
 There are basically two ways of authenticating user login with OpenSSH server: password authentication and public key-based authentication. The latter is also known as passwordless SSH login because you don't have to enter your password.  
 Simple steps to set up passwordless SSH login are as below,  
 Generate a public/private keypair on your Linux server,  
-  \# ssh-keygen  
+  `# ssh-keygen`  
 Upload your public key to remote Linux server,  
-  \# ssh-copy-id remote-user@server-ip  
+  `# ssh-copy-id remote-user@server-ip`  
 Check if passwordless SSH login works,  
-  \# ssh remote-user@server-ip  
+  `# ssh remote-user@server-ip`  
 
 ## Install
-step1: `git clone https://github.com/brewHouses/o2locktop.git`<br>
-step2: `cd o2locktop`<br>
-step3: `python setup.py install`
+step1: `# git clone https://github.com/ganghe/o2locktop.git`<br>
+step2: `# cd o2locktop`<br>
+step3: `# python setup.py install`
 
 or:
->`pip install o2locktop`
-
-or:
->`sudo zypper in o2locktop`(OpenSUSE/SLE)<br>
->`sudo yum install o2locktop`(CentOS)
+>`# pip install o2locktop`
 
 ## Known limitations
 
