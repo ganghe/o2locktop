@@ -50,6 +50,18 @@ Upload your public key to remote Linux server,
 Check if passwordless SSH login works,  
   \# ssh remote-user@server-ip  
 
+## Install
+step1: `git clone https://github.com/brewHouses/o2locktop.git`<br>
+step2: `cd o2locktop`<br>
+step3: `python setup.py install`
+
+or:
+>`pip install o2locktop`
+
+or:
+>`sudo zypper in o2locktop`(OpenSUSE/SLE)<br>
+>`sudo yum install o2locktop`(CentOS)
+
 ## Known limitations
 
 Since OCFS2 file system statistics in kernel records the relevant data when applying for DLM lock and getting DLM lock, if a thread can't get a DLM lock all the time, it is called entering the deadlock state, o2locktop does not reflect this situation.  
