@@ -66,3 +66,4 @@ Since OCFS2 file system statistics in kernel records the relevant data when appl
 
 Replay o2locktop log file.  
 If the ocfs2 node hostnames are not specified, o2locktop can automatically discover the hosts in the cluster.  
+
