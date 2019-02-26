@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import distutils.core
-from o2locklib import config
+from o2locktoplib import config
 import os
 
 name = 'o2locktop'
@@ -20,6 +20,6 @@ distutils.core.setup(name=name,
     description = "o2locktop is a top-like OCFS2 DLM lock monitor",
     long_description = long_description,
     license = "GPL2.0",
-    packages = ['o2locklib'],
+    packages = ['o2locktoplib'],
     scripts = [name],
 )

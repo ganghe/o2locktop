@@ -13,15 +13,15 @@ import time
 attempt = 0
 while True:
     try:
-        from o2locklib import util
-        from o2locklib import dlm
-        from o2locklib import printer
-        from o2locklib import keyboard
-        from o2locklib import config
+        from o2locktoplib import util
+        from o2locktoplib import dlm
+        from o2locktoplib import printer
+        from o2locktoplib import keyboard
+        from o2locktoplib import config
         break
     except ImportError as e:
         if attempt:
-            print("\no2locktop: error: can't find the o2locklib, installed error!\n", file=sys.stderr)
+            print("\no2locktop: error: can't find the o2locktoplib, installed error!\n", file=sys.stderr)
             sys.exit(0)
         else:
             attempt = 1
@@ -33,7 +33,7 @@ while True:
 
         for pk_path in package_path_64, package_path, local_package_path_64, local_package_path:
             if pk_path not in sys.path:
-                sys.path.appen(pk_path)
+                sys.path.append(pk_path)
    
 
 def parse_args():
