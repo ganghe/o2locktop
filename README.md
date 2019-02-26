@@ -50,13 +50,13 @@ Upload your public key to remote Linux server,
 Check if passwordless SSH login works,  
   `# ssh remote-user@server-ip`  
 
-## Install
-step1: `# git clone https://github.com/ganghe/o2locktop.git`<br>
-step2: `# cd o2locktop`<br>
-step3: `# python setup.py install`
-
-or:
->`# pip install o2locktop`
+## Installation
+You can use python setup script to install o2locktop,  
+  `# git clone https://github.com/ganghe/o2locktop.git`  
+  `# cd o2locktop`  
+  `# python setup.py install`  
+or use pip to install as below,  
+  `# pip install o2locktop`  
 
 ## Known limitations
 
