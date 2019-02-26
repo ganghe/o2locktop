@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-import util
-import dlm
-import printer
-import keyboard
+from o2locklib import util
+from o2locklib import dlm
+from o2locklib import printer
+from o2locklib import keyboard
+from o2locklib import config
 import threading
 import sys
 import signal
@@ -12,7 +13,6 @@ import argparse
 import multiprocessing
 import os
 import time
-import config
 
 def parse_args():
     description=""

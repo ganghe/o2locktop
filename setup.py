@@ -18,6 +18,6 @@ You can utilize o2locktop to detect the hot files/directories, whose DLM locks a
 You can get the maximal wait time per DLM lock, this helps you identify which hot files/directories should be decoupled for improving file access performance
 """,
     license = "GPL2.0",
-    packages = [''],
+    packages = ['o2locklib'],
     scripts = [name],
 )
