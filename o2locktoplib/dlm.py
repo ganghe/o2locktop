@@ -368,14 +368,15 @@ class LockSet():
             else:
                 node_detail_format = "{0:21}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
             temp_index += 1
+            node_name = util.get_hostname() if not _node.name else _node.name
             if temp_index < node_to_lock_dict_len:
                 node_detail_str = node_detail_format.format(
-                        "├─"+_node.name,
+                        "├─"+node_name,
                         ex_total_num, ex_total_time, ex_key_index,
                         pr_total_num, pr_total_time, pr_key_index)
             else:
                 node_detail_str = node_detail_format.format(
-                        "└─"+_node.name,
+                        "└─"+node_name,
                         ex_total_num, ex_total_time, ex_key_index,
                         pr_total_num, pr_total_time, pr_key_index)
 
