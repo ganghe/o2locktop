@@ -4,13 +4,13 @@
 from __future__ import print_function
 import datetime
 import time
-import shell
 import pdb
 import os
 import sys
 import signal
-import config
 import socket
+from o2locktoplib import config
+from o2locktoplib import shell
 
 PY2 = (sys.version_info[0] == 2)
 
@@ -34,9 +34,11 @@ def is_kernel_ocfs2_fs_stats_enabled(ip=None):
     uname = uname_r(ip)
     prefix = "ssh root@{0} ".format(ip) if ip else ""
     cmd = "grep \"CONFIG_OCFS2_FS_STATS=y\" /boot/config-{uname}".format(
-                uname=uname)
+                uname=" ".join(uname))
     sh = shell.shell(prefix + cmd)
     ret = sh.output()
+    if len(ret) == 0:
+        return False
     if ret[0] == "CONFIG_OCFS2_FS_STATS=y":
         return True
     return False
