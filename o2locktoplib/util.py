@@ -10,8 +10,12 @@ import os
 import sys
 import signal
 import config
+import socket
 
 PY2 = (sys.version_info[0] == 2)
+
+def get_hostname():
+    return socket.gethostname()
 
 def now():
     return datetime.datetime.now()
