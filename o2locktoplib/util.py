@@ -4,13 +4,13 @@
 from __future__ import print_function
 import datetime
 import time
-import shell
 import pdb
 import os
 import sys
 import signal
-import config
 import socket
+from o2locktoplib import config
+from o2locktoplib import shell
 
 PY2 = (sys.version_info[0] == 2)
 

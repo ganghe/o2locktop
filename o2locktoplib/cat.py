@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-import util
+from o2locktoplib import util
 
 
 def gen_cat(which, lock_space, *args):

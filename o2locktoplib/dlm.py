@@ -3,15 +3,15 @@
 
 
 from multiprocessing.dummy import Pool as ThreadPool
-import cat
 import sys
 import signal
 import threading
-import util
-import config
-import keyboard
 import time
 import os
+from o2locktoplib import util
+from o2locktoplib import config
+from o2locktoplib import keyboard
+from o2locktoplib import cat
 
 # cat  -----  output of one time execution of "cat locking_stat"
                 # one cat contains multiple Shot(es)

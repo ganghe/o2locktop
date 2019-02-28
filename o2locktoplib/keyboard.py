@@ -7,8 +7,8 @@ import select
 import signal
 import threading
 import time
-from retry import retry
-import config
+from o2locktoplib.retry import retry
+from o2locktoplib import config
 
 oldterm = None
 oldflags = None

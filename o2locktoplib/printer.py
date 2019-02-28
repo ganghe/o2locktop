@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-import util
 import multiprocessing
-import config
-import keyboard
-from retry import retry
+from o2locktoplib import util
+from o2locktoplib import config
+from o2locktoplib import keyboard
+from o2locktoplib.retry import retry
 
 SIMPLE_DISPLAY=0
 DETAILED_DISPLAY=1
