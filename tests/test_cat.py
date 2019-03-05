@@ -5,7 +5,6 @@ import config
 
 @pytest.fixture
 def lockspace():
-    print('-----------------------------------------------')
     return util.get_dlm_lockspace_mp(None, config.mount_point)
 
 @pytest.fixture(params = config.mode)
