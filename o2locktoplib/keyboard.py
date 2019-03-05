@@ -14,6 +14,19 @@ oldterm = None
 oldflags = None
 fd = sys.stdin.fileno()
 
+def set_terminal():
+    global oldterm,oldflags
+    oldterm = termios.tcgetattr(fd)
+    oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
+
+    newattr = termios.tcgetattr(fd)
+    newattr[3] = newattr[3] & ~termios.ICANON
+    newattr[3] = newattr[3] & ~termios.ECHO
+    termios.tcsetattr(fd, termios.TCSANOW, newattr)
+
+    fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
+    os.system('setterm -cursor off')
+
 class Keyboard():
     def __init__(self):
         pass
@@ -25,18 +38,7 @@ class Keyboard():
         return c
 
     def run(self, printer_queue):
-        global oldterm,oldflags
-        oldterm = termios.tcgetattr(fd)
-        oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
-
-        newattr = termios.tcgetattr(fd)
-        newattr[3] = newattr[3] & ~termios.ICANON
-        newattr[3] = newattr[3] & ~termios.ECHO
-        termios.tcsetattr(fd, termios.TCSANOW, newattr)
-
-        fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
-        os.system('setterm -cursor off')
-
+        set_terminal()
         while True:
             try:
                 c = self._getchar()
