@@ -9,6 +9,7 @@ import argparse
 import multiprocessing
 import os
 import time
+import signal
 
 attempt = 0
 while True:
@@ -18,6 +19,7 @@ while True:
         from o2locktoplib import printer
         from o2locktoplib import keyboard
         from o2locktoplib import config
+        from o2locktoplib.retry import retry
         break
     except ImportError as e:
         if attempt:
@@ -169,6 +171,10 @@ def local_ocfs2_debug_test():
         sys.exit(0)
 
 def main():
+    @retry(10)
+    def sigcont_handler(signum, frame):
+        keyboard.set_terminal()
+
     args = parse_args()
     log = args["log"]
     display_len = args["display_len"] 
@@ -210,6 +216,7 @@ def main():
     printer_process.start()
     lock_space_process.start()
 
+    signal.signal(signal.SIGCONT, sigcont_handler)
     keyboard.worker(printer_queue)
 
     lock_space_process.terminate()
