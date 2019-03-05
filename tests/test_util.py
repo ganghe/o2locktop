@@ -3,7 +3,16 @@ from o2locktoplib import util
 import config
 import pytest
 
+def test_cmd_is_exist():
+    assert util.cmd_is_exist(['ls'])[0], "cmd_is_exit test faild"
+    assert not util.cmd_is_exist(['cd'])[0], "cmd_is_exit test faild"
+    assert util.cmd_is_exist(["uname"])[0]
+    assert util.cmd_is_exist(["grep","cat","mount"])[0]
 
+    assert util.cmd_is_exist(['ls'], '127.0.0.1')[0], "cmd_is_exit test faild"
+    assert not util.cmd_is_exist(['cd'], '127.0.0.1')[0], "cmd_is_exit test faild"
+    assert util.cmd_is_exist(["uname"], '127.0.0.1')[0]
+    assert util.cmd_is_exist(["grep","cat","mount"], '127.0.0.1')[0]
 
 def test_get_hostname():
     with os.popen('hostname') as fp:

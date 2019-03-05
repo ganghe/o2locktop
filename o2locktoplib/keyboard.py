@@ -9,6 +9,7 @@ import threading
 import time
 from o2locktoplib.retry import retry
 from o2locktoplib import config
+from o2locktoplib import util
 
 oldterm = None
 oldflags = None
@@ -25,7 +26,8 @@ def set_terminal():
     termios.tcsetattr(fd, termios.TCSANOW, newattr)
 
     fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
-    os.system('setterm -cursor off')
+    if util.cmd_is_exist("setterm"):
+        os.system('setterm -cursor off')
 
 class Keyboard():
     def __init__(self):

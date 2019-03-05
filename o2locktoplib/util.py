@@ -14,6 +14,41 @@ from o2locktoplib import shell
 
 PY2 = (sys.version_info[0] == 2)
 
+def get_remote_path(ip):
+    prefix = "ssh root@{0} ".format(ip)
+    cmd = "echo $PATH"
+    sh = shell.shell(prefix + cmd)
+    ret = sh.output()
+    return ret
+
+def get_remote_cmd_list(ip):
+    path = get_remote_path(ip)
+    prefix = "ssh root@{0} ".format(ip)
+    ret = []
+    #cmd = 'for i in `echo $PATH|sed "s/:/ /g"`; do ls $i | grep -v "^d"; done'
+    if len(path) == 0:
+        return []
+    for i in path[0].split(':'):
+        cmd = 'ls {0}'.format(i)
+        sh = shell.shell(prefix + cmd)
+        ret = ret + sh.output()
+    return ret
+
+def cmd_is_exist(cmd_list, ip=None):
+    assert type(isinstance(cmd_list,list))
+    if not ip:
+        cmds = []
+        cmdpaths = os.environ['PATH'].split(':')
+        for cmdpath in cmdpaths:
+            if os.path.isdir(cmdpath):
+                cmds += os.listdir(cmdpath)
+    else:
+        cmds = get_remote_cmd_list(ip)
+    for cmd in cmd_list:
+        if cmd not in cmds:
+            return False, cmd
+    return True, None
+
 def get_hostname():
     return socket.gethostname()
 

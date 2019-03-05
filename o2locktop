@@ -159,6 +159,14 @@ def connection_ocfs2_debug_test(nodes):
             util.eprint("\no2locktop: error: the node({0}) do not support ocfs2 debug, please cheack and retry\n".format(node))
             sys.exit(0)
 
+def remote_cmd_test(nodes):
+    for node in nodes:
+            result = util.cmd_is_exist(config.CMDS, node)
+            if not result[0]:
+                util.eprint("\no2locktop: error: the node({0}) do not have the command {1}, please install and retry\n".format(node, result[1]))
+                sys.exit(0)
+
+
 def local_test(mount_point):
     uuid = util.get_dlm_lockspace_mp(None, mount_point)    
     if not uuid:
@@ -168,6 +176,12 @@ def local_test(mount_point):
 def local_ocfs2_debug_test():
     if(False == util.is_kernel_ocfs2_fs_stats_enabled()):
         util.eprint("\no2locktop: error: the node({0}) do not support ocfs2 debug, please cheack and retry\n".format("localhost"))
+        sys.exit(0)
+
+def local_cmd_test():
+    result = util.cmd_is_exist(config.CMDS)
+    if not result[0]:
+        util.eprint("\no2locktop: error: the local node do not have the command {0}, please install and retry\n".format(result[1]))
         sys.exit(0)
 
 def main():
@@ -186,6 +200,7 @@ def main():
         nodes = args["node_list"]
         connection_test(nodes, mount_point)
         connection_ocfs2_debug_test(nodes)
+        remote_cmd_test(nodes)
         lock_space_str = util.get_dlm_lockspace_mp(mount_host, mount_point)
         max_sys_inode_num = util.get_dlm_lockspace_max_sys_inode_number(mount_host, mount_point)
         mount_info = ':'.join([mount_host, mount_point])
@@ -193,6 +208,7 @@ def main():
         mount_point = args["mount_point"]
         local_test(mount_point)
         local_ocfs2_debug_test()
+        local_cmd_test()
         lock_space_str = util.get_dlm_lockspace_mp(None, mount_point)
         max_sys_inode_num = util.get_dlm_lockspace_max_sys_inode_number(None, mount_point)
         mount_info = mount_point
