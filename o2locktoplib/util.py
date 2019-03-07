@@ -155,7 +155,8 @@ def lockspace_to_device(uuid, ip=None):
     Device => Id: 253,16  Uuid: 7635D31F539A483C8E2F4CC606D5D628  Gen: 0x6434F530  Label:
     """
     dev_major, dev_minor = output[0].split()[3].split(",")
-    cmd = "lsblk -o MAJ:MIN,KNAME,MOUNTPOINT -l | grep '{major}:{minor}'" \
+    # the space must be required
+    cmd = "lsblk -o MAJ:MIN,KNAME,MOUNTPOINT -l | grep '{major}:{minor} '" \
                 .format(major=dev_major,minor=dev_minor)
     sh = shell.shell(prefix + cmd)
     #before grep output should be like
