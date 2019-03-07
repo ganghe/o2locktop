@@ -664,6 +664,7 @@ class LockSpace:
         self._lock_types = {}
         self.should_stop = False
         self._thread_list = []
+        self.first_run = True
         if node_name_list is None:
             # node name None means this is a local node
             self._nodes['local'] = Node(self, None)
@@ -699,9 +700,12 @@ class LockSpace:
                             'rows':config.ROWS}
                             )
             end = time.time()
-            new_interval = interval - (end - start)
-            if new_interval > 0:
-                util.sleep(new_interval)
+            if not self.first_run:
+                new_interval = interval - (end - start)
+                if new_interval > 0:
+                    util.sleep(new_interval)
+            else:
+                self.first_run = False
 
     @property
     def name(self):
