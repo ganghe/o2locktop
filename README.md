@@ -58,6 +58,10 @@ You can use python setup script to install o2locktop,
 or use pip to install as below,  
   `# pip install o2locktop`  
 
+## Demo
+[Demo](https://asciinema.org/a/fktChiXJpLGL8Z3WaoWDaXLE2)
+
+
 ## Known limitations
 
 Since OCFS2 file system statistics in kernel records the relevant data when applying for DLM lock and getting DLM lock, if a thread can't get a DLM lock all the time, it is called entering the deadlock state, o2locktop does not reflect this situation.  
