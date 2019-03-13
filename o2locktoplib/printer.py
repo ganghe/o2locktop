@@ -2,6 +2,7 @@
 #-*- coding: utf-8 -*-
 
 import multiprocessing
+import os, sys
 from o2locktoplib import util
 from o2locktoplib import config
 from o2locktoplib import keyboard
@@ -21,6 +22,14 @@ class Printer():
         self.prelude = None
     @retry(10)
     def _refresh(self,rows):
+        # if the stdout not point to the tty
+        if os.major(os.fstat(sys.stdout.fileno()).st_dev) != 0:
+            if util.PY2:
+                print "unknow line in test case" 
+                print "unknow line in test case" 
+            else:
+                print("unknow line in test case")
+                print("unknow line in test case")
         if self.content:
             if(config.clear):
                 util.clear_screen()
