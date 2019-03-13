@@ -137,7 +137,8 @@ def major_minor_to_device_path(major, minor, ip=None):
     return device_name
 
 def eprint(msg):
-    print(msg, file=sys.stderr)
+    print(msg, file=sys.stdout)
+    # print(msg, file=sys.stderr)
 
 def lockspace_to_device(uuid, ip=None):
     cmd = "cat /sys/kernel/debug/ocfs2/{uuid}/fs_state | grep 'Device =>'"\
