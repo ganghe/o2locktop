@@ -1,10 +1,11 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #encoding:utf-8
+# TODO
+# test_one_fram maybe logic wrong
 import sys
 import os
 import argparse
 import logging
-from goto import with_goto
 import random
 import time
 import subprocess
@@ -16,7 +17,8 @@ PY2 = (sys.version_info[0] == 2)
 total = 0
 ls_flag = Value('d', 1)
 file_path = os.path.abspath(os.path.dirname(__file__))
-
+if not PY2:
+    from goto import with_goto
 
 if not os.path.exists('/tmp/log/o2locktop'):
     os.system("mkdir -p /tmp/log/o2locktop")
@@ -66,7 +68,7 @@ def create_file(mount_point, creat_file_num = 1000):
         newfile = "{0}.test".format(i)
         filepath = os.path.join(mount_point, newfile)
         if not os.path.exists(filepath):
-            os.system("touch {}".format(filepath))
+            os.system("touch {0}".format(filepath))
 
 usage = "Enter q to quit"
 
@@ -318,54 +320,87 @@ def consume_any_line(line = None):
         return line
     return False
     '''
-
-@with_goto
-def test_one_fram(length, mount_point):
-    global total
-    handle_functions = [handle_first_line, handle_second_line,
-                        handle_third_line, handle_head,
-                        handle_one_line, consume_any_line]
+if not PY2:
+    @with_goto
+    def test_one_fram(length, mount_point):
+        global total
+        handle_functions = [handle_first_line, handle_second_line,
+                            handle_third_line, handle_head,
+                            handle_one_line, consume_any_line]
     
-    uuid = get_uuid(mount_point) 
-    max_inode = get_max_inode(mount_point)
-    while True:
-        info = get_line_type()
-        if info[0] == "first":
-            handle_first_line(uuid, info[1])
-            goto .first
-        elif info[0] == "second":
-            total = handle_second_line(info[1])
-            goto .second
-        elif info[0] == "third":
-            handle_third_line(info[1])
-            goto .third
-        elif info[0] == "blank":
-            handle_blank_space()
-            goto .blank
-        elif info[0] == "head":
-            handle_head(info[1])
-            goto .head
-        elif info[0] == "locks":
-            handle_one_line(max_inode, info[1])
-            goto .head
-        # if is "unknown", then loop
-    handle_first_line(uuid)
-    label .first
-    total = handle_second_line()
-    label .second
-    handle_third_line()
-    label .third
-    handle_blank_space()
-    label .blank
-    handle_head()
-    label .head
-    for i in range(length + 1):
-        info = get_line_type()
-        if info[0] == "locks":
-            handle_one_line(max_inode, info[1])
-        else:
-            break
-
+        uuid = get_uuid(mount_point) 
+        max_inode = get_max_inode(mount_point)
+        while True:
+            info = get_line_type()
+            if info[0] == "first":
+                handle_first_line(uuid, info[1])
+                goto .first
+            elif info[0] == "second":
+                total = handle_second_line(info[1])
+                goto .second
+            elif info[0] == "third":
+                handle_third_line(info[1])
+                goto .third
+            elif info[0] == "blank":
+                # handle_blank_space()
+                goto .blank
+            elif info[0] == "head":
+                handle_head(info[1])
+                goto .head
+            elif info[0] == "locks":
+                handle_one_line(max_inode, info[1])
+                goto .head
+            # if is "unknown", then loop
+        handle_first_line(uuid)
+        label .first
+        total = handle_second_line()
+        label .second
+        handle_third_line()
+        label .third
+        handle_blank_space()
+        label .blank
+        handle_head()
+        label .head
+        for i in range(length + 1):
+            info = get_line_type()
+            if info[0] == "locks":
+                handle_one_line(max_inode, info[1])
+            else:
+                break
+else:
+    def test_one_fram(length, mount_point):
+        global total
+        handle_functions = [handle_first_line, handle_second_line,
+                            handle_third_line, handle_head,
+                            handle_one_line, consume_any_line]
+    
+        uuid = get_uuid(mount_point) 
+        max_inode = get_max_inode(mount_point)
+        while True:
+            info = get_line_type()
+            if info[0] == "first":
+                handle_first_line(uuid, info[1])
+            elif info[0] == "second":
+                total = handle_second_line(info[1])
+            elif info[0] == "third":
+                handle_third_line(info[1])
+            elif info[0] == "blank":
+                # handle_blank_space()
+                continue
+            elif info[0] == "head":
+                handle_head(info[1])
+            elif info[0] == "locks":
+                handle_one_line(max_inode, info[1])
+                break
+            if "unknown" in info[0]:
+                return
+        # maybe change "length + 1" to "length" could correct the logic wrong
+        for i in range(length + 1):
+            info = get_line_type()
+            if info[0] == "locks":
+                handle_one_line(max_inode, info[1])
+            else:
+                break
 
 def dynamics_test(length, mount_point):
     global total, ls_flag
@@ -375,6 +410,9 @@ def dynamics_test(length, mount_point):
     ls_flag.value = 1
     p = Process(target=ls_loop, args = (mount_point, ls_flag))
     p.start()
+    if PY2:
+        test_one_fram(length, mount_point)
+        test_one_fram(length, mount_point)
     test_one_fram(length, mount_point)
     test_one_fram(length, mount_point)
     ls_flag.value = 0
@@ -403,7 +441,7 @@ def ls_loop(mount_point, ls_flag):
         sh.write("#!/bin/bash\n")
         sh.write("while true\n")
         sh.write("do\n")
-        sh.write("ls -l {}\n".format(mount_point))
+        sh.write("ls -l {0}\n".format(mount_point))
         sh.write("sleep 0.1\n")
         sh.write("done\n")
 
@@ -428,10 +466,10 @@ def run():
     i = 0
     loop_times = days * 17280
     while True:
-        if random.randint(1,1) == 1:
+        if random.randint(1,10) == 1:
             # print("d test")
             dynamics_test(length, mount_point)
-        elif random.randint(1,3) == 2:
+        elif random.randint(1,10) == 2:
             # print("s test")
             # static_test(length, mount_point)
             pass

@@ -13,7 +13,7 @@ with open(read_path, "r") as fh:
 
 
 distutils.core.setup(name=name,
-    version = config.VERSION,
+    version = config.VERSION_SETUP,
     author = "Larry Chen, Weikai Wang, Gang He",
     author_email = "lchen@suse.com, wewang@suse.com, ghe@suse.com",
     url = "https://github.com/ganghe/o2locktop",
