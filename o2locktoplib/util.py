@@ -9,14 +9,19 @@ import os
 import sys
 import signal
 import socket
+import platform
 from o2locktoplib import config
 from o2locktoplib import shell
 
 PY2 = (sys.version_info[0] == 2)
+if "linux" in platform.system().lower():
+    LINUX = True
+else:
+    LINUX = False
 
 def get_remote_path(ip):
     prefix = "ssh root@{0} ".format(ip)
-    cmd = "echo $PATH"
+    cmd = "echo '$PATH'"
     sh = shell.shell(prefix + cmd)
     ret = sh.output()
     return ret
@@ -210,9 +215,9 @@ def get_dlm_lockspace_max_sys_inode_number(ip, mount_point):
     uuid = _trans_uuid(get_dlm_lockspace_mp(ip, mount_point))
     if not uuid:
         eprint("o2locktop: error: can't find the mount point: {0}, please cheach and retry".format(mount_point))
+    prefix = "ssh root@{0} ".format(ip) if ip else ""
     cmd = "blkid  | grep {0}".format(uuid)
-    output = os.popen(cmd)
-    output = output.readlines()
+    output = shell.shell(prefix + cmd).output()
     
     if (len(output) == 1):
         filesystem = output[0].split()[0].strip()[:-1]
@@ -221,9 +226,9 @@ def get_dlm_lockspace_max_sys_inode_number(ip, mount_point):
     else:
         return None
     # TODO:fix shell
+    prefix = "ssh root@{0} ".format(ip) if ip else ""
     cmd = "debugfs.ocfs2 -R \"ls //\" {0}".format(filesystem)
-    output = os.popen(cmd)
-    output = output.readlines()
+    output = shell.shell(prefix + cmd).output()
     if len(output) > 0:
         return int(output[-1].split()[0])
     return None

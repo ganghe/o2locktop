@@ -64,6 +64,8 @@ Here is an online demo for your reference, click [here.](https://asciinema.org/a
 ## Known limitations
 
 Since OCFS2 file system statistics in kernel records the relevant data when applying for DLM lock and getting DLM lock, if a thread can't get a DLM lock all the time, it is called entering the deadlock state, o2locktop does not reflect this situation.  
+O2locktop can't display the file names of the currently active files, you can find the corresponding file name according to the inode number, for example,  
+  `# find /mountpoint -inum ino`  
 
 ## To do list
 
