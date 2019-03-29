@@ -12,6 +12,7 @@ import time
 import signal
 from tempfile import TemporaryFile
 
+# can also use dup2
 tmp_stderr = TemporaryFile('w+t')
 sys.stderr = tmp_stderr
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
+from __future__ import print_function
 import multiprocessing
 import os, sys
 from o2locktoplib import util
@@ -23,13 +24,9 @@ class Printer():
     @retry(10)
     def _refresh(self,rows):
         # if the stdout not point to the tty
-        if os.major(os.fstat(sys.stdout.fileno()).st_dev) != 0:
-            if util.PY2:
-                print "unknow line in test case" 
-                print "unknow line in test case" 
-            else:
-                print("unknow line in test case")
-                print("unknow line in test case")
+        if util.LINUX and os.major(os.fstat(sys.stdout.fileno()).st_dev) != 0:
+            print("unknow line in test case")
+            print("unknow line in test case")
         if self.content:
             if(config.clear):
                 util.clear_screen()

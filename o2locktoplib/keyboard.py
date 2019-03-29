@@ -26,7 +26,7 @@ def set_terminal():
     termios.tcsetattr(fd, termios.TCSANOW, newattr)
 
     fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
-    if util.cmd_is_exist("setterm"):
+    if util.cmd_is_exist("setterm")[0]:
         os.system('setterm -cursor off')
 
 class Keyboard():
@@ -78,7 +78,8 @@ def reset_terminal():
         termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
     if oldflags:
         fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
-    os.system('setterm -cursor on')
+    if util.cmd_is_exist("setterm")[0]:
+        os.system('setterm -cursor on')
     
 
 def worker(printer_queue):
