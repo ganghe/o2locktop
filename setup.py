@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
-import setuptools
+from o2locktoplib import util
+if not util.PY2:
+    import setuptools
+else:
+    import distutils.core as setuptools
 from o2locktoplib import config
 import os
 
