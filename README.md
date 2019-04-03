@@ -59,7 +59,7 @@ or use pip to install as below,
   `# pip install o2locktop`  
 
 ## Demo
-Here is an online demo for your reference, click [here.](https://asciinema.org/a/fktChiXJpLGL8Z3WaoWDaXLE2)  
+Here is an online demo for your reference, click [here.](https://asciinema.org/a/ObZ0Wcf9zGdAJ87pqJ4oeZqXS)  
 
 ## Known limitations
 
