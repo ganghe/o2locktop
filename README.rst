@@ -100,7 +100,7 @@ Demo
 ----
 
 Here is an online demo for your reference, click
-`here. <https://asciinema.org/a/fktChiXJpLGL8Z3WaoWDaXLE2>`__
+`here. <https://asciinema.org/a/ObZ0Wcf9zGdAJ87pqJ4oeZqXS>`__
 
 Known limitations
 -----------------
