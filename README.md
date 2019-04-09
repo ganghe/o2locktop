@@ -3,72 +3,168 @@
 
 ## Introduction
 
-OCFS2 is a shared disk cluster file system, that means the files and directies on the shard disk are accessed from the different nodes simultaneously. To protect the data consistency among the cluster, the file access is coordinated through Distributed Lock Manager(DLM). For example, OCFS2 uses Meta DLM lock per inode to protect file meta data change, OCFS2 uses Write DLM lock per inode to protect file data write, OCFS2 uses Open DLM lock per inode to implement that a opened file which was deleted from another node can still be accessed, OCFS2 also uses other types of DLM lock to protect directory related consistency and file system meta files, etc.  
-o2locktop is a top-like OCFS2 DLM lock monitor, it displays DLM lock usages via querying OCFS2 file system statistics from the specified nodes. Therefore, OCFS2 kernel modules must enable OCFS2_FS_STATS configuration option when compiling. If you want to know if the current OCFS2 kernel modules enable OCFS2_FS_STATS setting, you can refer to /boot/config-\`uname -r\` file.  
-You can utilize o2locktop to detect the hot files/directories, whose DLM locks are frequently referenced among the cluster.  
-You can get the maximal wait time per DLM lock, this helps you identify which hot files/directories should be decoupled for improving file access performance.  
+o2locktop is a top-like tool to monitor OCFS2 DLM lock usage in the cluster,
+and can be used to detect hot files/directories, which intensively acquire DLM
+locks.
 
-## How to use
+The average/maximal wait time for DLM lock acquisitions likely gives hints to
+the administrator when concern about OCFS2 performance, for example,
+- if the workload is unbalanced among nodes.
+- if a file is too hot, then maybe need check the related applications above.
+- if a directory is too hot, then maybe split it to smaller with less number
+  of files underneath.
 
-Login one node of the OCFS2 cluster, get the o2locktop scripts from https://github.com/ganghe/o2locktop.  
-Make sure passwordless SSH access between the nodes is set up, and Python interpreter is installed.  
-Launch o2locktop script via the command line, e.g. "o2locktop -n node1 -n node2 -n node3 /mnt/shared".  
-Type "d" to diplay DLM lock statistics for each node.
-Type "Ctrl+C" or "q" to end o2locltop process.  
-For more information, please see o2locktop help via the command line "o2locktop --help".
+For slightly more implementation details, 
 
-## Columns description
+- As a shared disk cluster file system, OCFS2 files and directies can be
+  accessed from the different nodes simultaneously. To protect the data
+consistency, the file access is coordinated through Distributed Lock
+Manager(DLM). For example, "Meta DLM lock" is used to protect file(per inode)
+meta data change. "Write DLM lock" is used to protect file data write. "Open
+DLM lock" could be used for one node keeps accessing a opened file while other
+processes (or even from other nodes) might delete it, and eventually get
+deleted once all associated file descriptors are close. For more information
+about how OCFS2 works with DLM, please check [OCFS2 Project web
+page][OCFS2_wiki].
 
-o2locktop displays columns for number of lock acquisition and wait time by each inode during the sampling period, the output is refreshed every 5 seconds, the records are sorted according to DLM EX/PR lock wait time.  
-TYPE column represents which DLM lock type, e.g. 'M' -> inode meta data lock, 'W' -> inode file data write lock, 'O' -> inode file open lock, etc.  
-INO column lists inode number.  
-EX NUM column represents number of EX(write) lock acquisition.  
-EX TIME column represents the maximal wait time before get EX lock.  
-EX AVG column represents the average wait time before get EX lock.  
-PR NUM column represents number of PR(read) lock acquisition.  
-PR TIME column represents the maximal wait time before get PR lock.  
-PR AVG column represents the average wait time before get PR lock.  
+- o2locktop reads OCFS2 kernel debugfs statistics under /sys/kernel/debug/.
+  That says, for all cluster nodes, OCFS2_FS_STATS kernel config option must be
+set(enabled). To check it out:
 
-## OCFS2 file system
-
-OCFS2 is a general purpose extent based shared disk cluster file system with many similarities to ext3. If you want to know more about how OCFS2 works with DLM, please refer to the following web sites.  
-
-Project web page (old): http://oss.oracle.com/projects/ocfs2  
-Project web page (new): https://ocfs2.wiki.kernel.org  
-Tools web page (old): http://oss.oracle.com/projects/ocfs2-tools  
-Tools web page (new): https://github.com/markfasheh/ocfs2-tools  
-OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman  
-
-## Set up passwordless SSH login
-
-There are basically two ways of authenticating user login with OpenSSH server: password authentication and public key-based authentication. The latter is also known as passwordless SSH login because you don't have to enter your password.  
-Simple steps to set up passwordless SSH login are as below,  
-Generate a public/private keypair on your Linux server,  
-  `# ssh-keygen`  
-Upload your public key to remote Linux server,  
-  `# ssh-copy-id remote-user@server-ip`  
-Check if passwordless SSH login works,  
-  `# ssh remote-user@server-ip`  
+```shell
+grep OCFS2_FS_STATS < /boot/config-`uname -r`
+```
 
 ## Installation
-You can use python setup script to install o2locktop,  
-  `# git clone https://github.com/ganghe/o2locktop.git`  
-  `# cd o2locktop`  
-  `# python setup.py install`  
-or use pip to install as below,  
-  `# pip install o2locktop`  
 
-## Demo
-Here is an online demo for your reference, click [here.](https://asciinema.org/a/ObZ0Wcf9zGdAJ87pqJ4oeZqXS)  
+Note: o2locktop is Python 2 and Python 3 compatible.
 
-## Known limitations
+- RPM:
 
-Since OCFS2 file system statistics in kernel records the relevant data when applying for DLM lock and getting DLM lock, if a thread can't get a DLM lock all the time, it is called entering the deadlock state, o2locktop does not reflect this situation.  
-O2locktop can't display the file names of the currently active files, you can find the corresponding file name according to the inode number, for example,  
-  `# find /mountpoint -inum ino`  
+  https://download.opensuse.org/repositories/network:/ha-clustering:/Factory/
 
-## To do list
+  eg. to download openSUSE_Tumbleweed/noarch/o2locktop-1.0.0...noarch.rpm
 
-Replay o2locktop log file.  
-If the ocfs2 node hostnames are not specified, o2locktop can automatically discover the hosts in the cluster.  
+```shell
+  sudo zypper install <http_rpm_uri>
+  or
+  sudo rpm -ivh <o2locktop-1.0.0...noarch.rpm>
+```
 
+- Python pip:
+
+```shell
+  sudo pip install o2locktop
+```
+
+- Or, directly use o2locktop from the source code tree:
+
+```shell
+  git clone https://github.com/ganghe/o2locktop.git
+  cd o2locktop 
+  ~/o2locktop> python o2locktop -h
+```
+
+## Usage
+
+- Check `o2locktop --help` in details, also availble in the below [REFERENCE](#reference)
+- Or, check the asciidemo [here][o2locktop_demo]
+
+- Known limitations
+  1. Since OCFS2 file system statistics in kernel calculation starts when
+     applying for DLM lock and ends when it returns. If it never returns due to
+the deadlock because of a bug just in case, o2locktop does not reflect this
+situation currently.
+
+  2. o2locktop can't display the file names of the inode. The additional step
+     is needed to translate inode to the file name.
+```shell
+     find <YOUR_OCFS2_MOUNT_POINT> -inum <INODE_NUMBER>
+```
+
+### TODO
+
+- Replay o2locktop log file.  
+- Inside of the cluster, o2lockto can run without any argument.
+- unittest
+
+### Community
+
+* Report bugs at the [o2locktop issues @ Github.com](https://github.com/ganghe/o2locktop/issues) page.
+* Contact [OCFS2 developer mailing list](https://oss.oracle.com/mailman/listinfo/ocfs2-devel)
+
+
+
+
+[OCFS2_wiki]: https://ocfs2.wiki.kernel.org
+[o2locktop_demo]: https://asciinema.org/a/fktChiXJpLGL8Z3WaoWDaXLE2  
+
+
+REFERENCE
+---------
+```
+usage: o2locktop [-h] [-n NODE_IP] [-o LOG_FILE] [-l DISPLAY_LENGTH] [-V] [-d]
+                 [MOUNT_POINT]
+
+It is a top-like tool to monitor OCFS2 DLM lock usage in the cluster, and can
+be used to detect hot files/directories, which intensively acquire DLM locks.
+
+positional arguments:
+  MOUNT_POINT        the OCFS2 mount point, eg. /mnt/shared
+
+optional arguments:
+  -h, --help         show this help message and exit
+  -n NODE_IP         OCFS2 node IP address for ssh
+  -o LOG_FILE        log path
+  -l DISPLAY_LENGTH  number of lock records to display, the default is 15
+  -V, --version      the current version of o2locktop
+  -d, --debug        show all the inode including the system inode number
+
+The average/maximal wait time for DLM lock acquisitions likely gives hints to
+the administrator when concern about OCFS2 performance, for example,
+- if the workload is unbalanced among nodes.
+- if a file is too hot, then maybe need check the related applications above.
+- if a directory is too hot, then maybe split it to smaller with less number
+  of files underneath.
+
+OUTPUT ANNOTATION:
+  - The output is refreshed every 5 seconds, and sorted by the sum of 
+    DLM EX(exclusive) and PR(protected read) lock average wait time
+  - One row, one inode (including the system meta files if with '-d' argument)
+  - Columns:
+    "TYPE" is DLM lock types,
+      'M' -> Meta data lock for the inode
+      'W' -> Write lock for the inode
+      'O' -> Open lock for the inode
+
+    "INO" is the inode number of the file
+
+    "EX NUM" is the number of EX lock acquisitions
+    "EX TIME" is the maximal wait time to get EX lock
+    "EX AVG" is the average wait time to get EX lock
+
+    "PR NUM" is the number of PR(read) lock acquisitions
+    "PR TIME" is the maximal wait time to get PR lock
+    "PR AVG" is the average wait time to get PR lock
+
+SHORTCUTS:
+  - Type "d" to display DLM lock statistics for each node
+  - Type "Ctrl+C" or "q" to exit o2locktop process
+
+PREREQUISITES:
+  o2locktop reads OCFS2_FS_STATS statistics from /sys/kernel/debug/. That says,
+  for all cluster nodes, the kernel option must be set(enabled). Check it out:
+      grep OCFS2_FS_STATS < /boot/config-\`uname -r\`
+
+  o2locktop uses the passwordless SSH to OCFS2 nodes as root. Set it up if not:
+      ssh-keygen; ssh-copy-id root@node1
+
+EXAMPLES:
+  - At any machine within or outside of the cluster:
+
+    o2locktop -n node1 -n node2 -n node3 /mnt/shared
+
+    To find the absolute path of the inode file:
+    find <MOUNT_POINT> -inum <INO>
+
+``` 
