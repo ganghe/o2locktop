@@ -12,10 +12,6 @@ import time
 import signal
 from tempfile import TemporaryFile
 
-# can also use dup2
-tmp_stderr = TemporaryFile('w+t')
-sys.stderr = tmp_stderr
-
 attempt = 0
 while True:
     try:
@@ -44,67 +40,102 @@ while True:
    
 
 def parse_args():
-    description=""
-    usage = \
+
+    DESCRIPTION = """\
+It is a top-like tool to monitor OCFS2 DLM lock usage in the cluster, and can
+be used to detect hot files/directories, which intensively acquire DLM locks.
 """
-Usage: o2locktop [OPTIONS] MOUNTPOINT
-       o2locktop -h|--help
-       o2locktop -V|--version
-[OPTIONS] can be:
-       -o file		save the log to the given file
-       -n hostname	specify the hostname of the OCFS2 node
-       -l number	specify the number of lock resource lines to display
-       -d		display the meta-file lock resources
 
-Monitor OCFS2 DLM lock statistics at the MOUNTPOINT path.
-Launch o2locktop script like the below command line,
-e.g. "o2locktop -n node1 -n node2 -n node3 /mnt/shared"
+    NOTES = """\
+The average/maximal wait time for DLM lock acquisitions likely gives hints to
+the administrator when concern about OCFS2 performance, for example,
+- if the workload is unbalanced among nodes.
+- if a file is too hot, then maybe need check the related applications above.
+- if a directory is too hot, then maybe split it to smaller with less number
+  of files underneath.
 
-Controls: 
-Type "d" to diplay DLM lock statistics for each node.
-Type "Ctrl+C" or "q" to exit o2locktop process.
+OUTPUT ANNOTATION:
+  - The output is refreshed every 5 seconds, and sorted by the sum of 
+    DLM EX(exclusive) and PR(protected read) lock average wait time
+  - One row, one inode (including the system meta files if with '-d' argument)
+  - Columns:
+    "TYPE" is DLM lock types,
+      'M' -> Meta data lock for the inode
+      'W' -> Write lock for the inode
+      'O' -> Open lock for the inode
 
-Notes:
-The MOUNTPOINT path is the mount point of the first OCFS2 node in the parameter list.
-Passwordless SSH access between the OCFS2 nodes and o2locktop node must be set up.
-The lock resources are sorted according to DLM EX/PR lock average wait time.
-Please read the README.md file for more information.
+    "INO" is the inode number of the file
+
+    "EX NUM" is the number of EX lock acquisitions
+    "EX TIME" is the maximal wait time to get EX lock
+    "EX AVG" is the average wait time to get EX lock
+
+    "PR NUM" is the number of PR(read) lock acquisitions
+    "PR TIME" is the maximal wait time to get PR lock
+    "PR AVG" is the average wait time to get PR lock
+
+SHORTCUTS:
+  - Type "d" to display DLM lock statistics for each node
+  - Type "Ctrl+C" or "q" to exit o2locktop process
+
+PREREQUISITES:
+  o2locktop reads OCFS2_FS_STATS statistics from /sys/kernel/debug/. That says,
+  for all cluster nodes, the kernel option must be set(enabled). Check it out:
+      grep OCFS2_FS_STATS < /boot/config-\`uname -r\`
+
+  o2locktop uses the passwordless SSH to OCFS2 nodes as root. Set it up if not:
+      ssh-keygen; ssh-copy-id root@node1
+
+EXAMPLES:
+  - At any machine within or outside of the cluster:
+
+    o2locktop -n node1 -n node2 -n node3 /mnt/shared
+
+    To find the absolute path of the inode file:
+    find <MOUNT_POINT> -inum <INO>
+ 
 """
-    parser = argparse.ArgumentParser(description=description, usage=None, prog='o2locktop', add_help=False)
-    parser.add_argument('-n', metavar='host',
+
+    parser = argparse.ArgumentParser(description=DESCRIPTION, 
+                                     prog='o2locktop', 
+                                     epilog=NOTES,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter
+                                    )
+#                                     add_help=False)
+
+    parser.add_argument('-n', metavar='NODE_IP',
                         dest='host_list', action='append',
-                        help='node address used for ssh')
+                        help='OCFS2 node IP address for ssh')
 
-    parser.add_argument('-o', metavar='log', dest='log',
+    parser.add_argument('-o', metavar='LOG_FILE', dest='log',
                         action='store',
                         help='log path')
 
-    parser.add_argument('-l', metavar='display length', dest='display_len', 
-                        type=int,
-                        action='store',
+    parser.add_argument('-l', metavar='DISPLAY_LENGTH', nargs=1,
+                        dest='display_len', type=int, action='store',
                         help='number of lock records to display, the default is 15')
 
     parser.add_argument('-V','--version',action="store_true", 
-                        help='current version of o2locktop')
+                        help='the current version of o2locktop')
 
     parser.add_argument('-d','--debug',action="store_true",
-                        help='show all the inode,include the system inode number')
+                        help='show all the inode including the system inode number')
 
-    parser.add_argument('mount_point', nargs='?',
-                        help='mount point like /mnt')
-
-    parser.add_argument('-h','--help',action="store_true", 
-                        help='show this help message and exit')
+    parser.add_argument('mount_point', metavar='MOUNT_POINT', nargs='?',
+                        help='the OCFS2 mount point, eg. /mnt/shared')
 
     args = parser.parse_args()
+
+    # FIXME: to delete ZERO argument detection after implementing the new feat to
+    # allow users run this tool without argument inside the ocfs2 cluster. 
+    if len(sys.argv) < 2:
+        parser.print_usage()
+        sys.exit(1)
 
     node_list = []
     met_colon = False
     if args.version:
         print(config.VERSION)
-        sys.exit(0)
-    if args.help:
-        print(usage)
         sys.exit(0)
     if args.display_len != None and args.display_len <= 0:
         util.eprint("\no2locktop: error: The length of the line to show must be greater than 0\n")
@@ -199,7 +230,10 @@ def main():
     log = args["log"]
     display_len = args["display_len"] 
     debug = args["debug"]
-    
+
+    # can also use dup2
+    tmp_stderr = TemporaryFile('w+t')
+    sys.stderr = tmp_stderr
 
     if args['mode'] == "remote":
         mount_host, mount_point = args["mount_node"], args["mount_point"]
