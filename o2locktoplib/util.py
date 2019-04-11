@@ -152,10 +152,11 @@ def lockspace_to_device(uuid, ip=None):
     sh = shell.shell(prefix + cmd)
     output = sh.output()
     if len(output) == 0:
-        err_msg = "\n\nError while detecting the mount point {uuid} on {ip}\n\n".format(
+        err_msg = "\nError while detecting the mount point {uuid} on {ip}\n".format(
                         uuid=uuid, ip=ip)
         eprint(err_msg)
-        return
+        os._exit(0)
+        #return None, None, None
     #output should be like
     """
     Device => Id: 253,16  Uuid: 7635D31F539A483C8E2F4CC606D5D628  Gen: 0x6434F530  Label:
@@ -214,7 +215,7 @@ def _trans_uuid(uuid):
 def get_dlm_lockspace_max_sys_inode_number(ip, mount_point):
     uuid = _trans_uuid(get_dlm_lockspace_mp(ip, mount_point))
     if not uuid:
-        eprint("o2locktop: error: can't find the mount point: {0}, please cheach and retry".format(mount_point))
+        eprint("\no2locktop: error: can't find the mount point: {0}, please cheack and retry\n".format(mount_point))
     prefix = "ssh root@{0} ".format(ip) if ip else ""
     cmd = "blkid  | grep {0}".format(uuid)
     output = shell.shell(prefix + cmd).output()
