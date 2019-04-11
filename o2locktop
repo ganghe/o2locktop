@@ -12,6 +12,7 @@ import time
 import signal
 from tempfile import TemporaryFile
 
+pid = os.getpid()
 attempt = 0
 while True:
     try:
@@ -173,39 +174,73 @@ EXAMPLES:
     parser.print_help()
     sys.exit(0)
 
+def _connection_test_worker(node,mount_point,queue,pid):
+    now = time.time()
+    uuid = util.get_dlm_lockspace_mp(node, mount_point)
+    if not uuid:
+        if (time.time()-now) > 20:
+            util.eprint("\no2locktop: error: network connection to {0} failed\n".format(node))
+            os.kill(pid,signal.SIGUSR1)
+        else:
+            util.eprint("\no2locktop: error: can't find the mount point: {0}, please cheack and retry\n".format(mount_point))
+            os.kill(pid,signal.SIGUSR1)
+        sys.exit(0)
+    queue.put(uuid)
+
+
 def connection_test(nodes,mount_point):
     assert(nodes != None and len(nodes) > 0)
-    uuid = util.get_dlm_lockspace_mp(nodes[0], mount_point)    
-    if not uuid:
-        util.eprint("\no2locktop: error: can't find the mount point: {0}, please cheack and retry\n".format(mount_point))
-        sys.exit(0)
-    for node in nodes[1:]:
-        now = time.time()
-        if uuid != util.get_dlm_lockspace_mp(node, mount_point):
-            if (time.time()-now) > 20:
-                util.eprint("\no2locktop: error: network connection to {0} failed\n".format(node))
-            else:
-                util.eprint("\no2locktop: error: can't find the shared storage in the cluster, "\
-                                       "check if the node in the command line has input errors\n")
+    queue = multiprocessing.Queue()
+    process_list = []
+    for node in nodes:
+        p = multiprocessing.Process(target = _connection_test_worker, args = (node,mount_point,queue,pid))
+        p.daemon = True
+        p.start()
+        process_list.append(p)
+    for p in process_list:
+        p.join()
+    uuid = queue.get()
+    for i in range(len(process_list) - 1):
+        tmp = queue.get()
+        if uuid != tmp:
+            util.eprint("\no2locktop: error: can't find the shared storage in the cluster, "\
+                          "check if the node in the command line has input errors\n")
             sys.exit(0) 
 
+def _connection_ocfs2_debug_test_worker(node, pid):
+    if(False == util.is_kernel_ocfs2_fs_stats_enabled(node)):
+        util.eprint("\no2locktop: error: the node({0}) do not support ocfs2 debug, please cheack and retry\n".format(node))
+        os.kill(pid,signal.SIGUSR1)
+        sys.exit(0)
+
+process_list = []
 def connection_ocfs2_debug_test(nodes):
     assert(nodes != None and len(nodes) > 0)
+    # do must wait the children process finished
     for node in nodes:
-        if(False == util.is_kernel_ocfs2_fs_stats_enabled(node)):
-            util.eprint("\no2locktop: error: the node({0}) do not support ocfs2 debug, please cheack and retry\n".format(node))
-            sys.exit(0)
+        p = multiprocessing.Process(target = _connection_ocfs2_debug_test_worker, args = (node,pid))
+        p.daemon = True
+        p.start()
+        process_list.append(p)
+
+def _remote_cmd_test_worker(node, pid):
+    result = util.cmd_is_exist(config.CMDS, node)
+    if not result[0]:
+        util.eprint("\no2locktop: error: the node({0}) do not have the command {1}, please install and retry\n".format(node, result[1]))
+        os.kill(pid,signal.SIGUSR1)
+        sys.exit(0)
 
 def remote_cmd_test(nodes):
+    assert(nodes != None and len(nodes) > 0)
     for node in nodes:
-            result = util.cmd_is_exist(config.CMDS, node)
-            if not result[0]:
-                util.eprint("\no2locktop: error: the node({0}) do not have the command {1}, please install and retry\n".format(node, result[1]))
-                sys.exit(0)
+        p = multiprocessing.Process(target = _remote_cmd_test_worker, args = (node,pid))
+        p.daemon = True
+        p.start()
+        process_list.append(p)
 
 
 def local_test(mount_point):
-    uuid = util.get_dlm_lockspace_mp(None, mount_point)    
+    uuid = util.get_dlm_lockspace_mp(None, mount_point)
     if not uuid:
         util.eprint("\no2locktop: error: can't find the mount point: {0}, please cheack and retry\n".format(mount_point))
         sys.exit(0)
@@ -222,18 +257,23 @@ def local_cmd_test():
         sys.exit(0)
 
 def main():
+    args = parse_args()
+
     @retry(10)
     def sigcont_handler(signum, frame):
         keyboard.set_terminal()
 
-    args = parse_args()
+    @retry(10)
+    def sigusr1_handler(signum, frame):
+        keyboard.reset_terminal()
+        # util.eprint("\no2locktop: error: can't find the mount point: {0}, please cheack and retry\n".format(args["mount_point"]))
+        sys.exit(0)
+
+    signal.signal(signal.SIGUSR1, sigusr1_handler)
+
     log = args["log"]
     display_len = args["display_len"] 
     debug = args["debug"]
-
-    # can also use dup2
-    tmp_stderr = TemporaryFile('w+t')
-    sys.stderr = tmp_stderr
 
     if args['mode'] == "remote":
         mount_host, mount_point = args["mount_node"], args["mount_point"]
@@ -254,21 +294,30 @@ def main():
         mount_info = mount_point
 
     if lock_space_str is None:
-        print("Error while getting lockspace")
+        #print("Error while getting lockspace")
         sys.exit(0)
 
     if args["mode"] == "local":
         nodes = None
+
+    # can also use dup2
+    tmp_stderr = TemporaryFile('w+t')
+    sys.stderr = tmp_stderr
+
+    for p in process_list:
+        p.join()
 
     printer_queue = multiprocessing.Queue()
     printer_process = multiprocessing.Process(target=printer.worker,
                                         args=(printer_queue, log),
                                         kwargs={"mount_info":mount_info}
                                     )
+    printer_process.daemon = True
     lock_space_process = multiprocessing.Process(target=dlm.worker,
                                         args=(lock_space_str, max_sys_inode_num, debug, display_len, nodes, printer_queue)
                                         )
 
+    lock_space_process.daemon = True
     printer_process.start()
     lock_space_process.start()
 
