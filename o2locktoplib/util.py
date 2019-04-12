@@ -227,9 +227,13 @@ def get_dlm_lockspace_max_sys_inode_number(ip, mount_point):
     else:
         return None
     # TODO:fix shell
-    prefix = "ssh root@{0} ".format(ip) if ip else ""
-    cmd = "debugfs.ocfs2 -R \"ls //\" {0}".format(filesystem)
-    output = shell.shell(prefix + cmd).output()
+    if ip != None:
+        prefix = "ssh root@{0} ".format(ip) if ip else ""
+        cmd = "'debugfs.ocfs2 -R \"ls //\" {0}'".format(filesystem)
+        output = shell.shell(prefix + cmd).output()
+    else:
+        cmd = "debugfs.ocfs2 -R \"ls //\" {0}".format(filesystem)
+        output = os.popen(cmd).readlines()
     if len(output) > 0:
         return int(output[-1].split()[0])
     return None
