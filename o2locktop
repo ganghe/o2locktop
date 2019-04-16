@@ -178,13 +178,18 @@ def _connection_test_worker(node,mount_point,queue,pid):
     now = time.time()
     uuid = util.get_dlm_lockspace_mp(node, mount_point)
     if not uuid:
-        if (time.time()-now) > 20:
+        if (time.time()-now) > 5:
             util.eprint("\no2locktop: error: network connection to {0} failed\n".format(node))
             os.kill(pid,signal.SIGUSR1)
+            return
+        elif not util.is_passwdless_ssh_set(node):
+            util.eprint('\no2locktop: error: o2locktop uses the passwordless SSH to OCFS2 nodes as root. Set it up if not: \nssh-keygen; ssh-copy-id root@node1\n')
+            os.kill(pid,signal.SIGUSR1)
+            return
         else:
             util.eprint("\no2locktop: error: can't find the mount point: {0}, please cheack and retry\n".format(mount_point))
             os.kill(pid,signal.SIGUSR1)
-        sys.exit(0)
+            return
     queue.put(uuid)
 
 
@@ -267,7 +272,7 @@ def main():
     def sigusr1_handler(signum, frame):
         keyboard.reset_terminal()
         # util.eprint("\no2locktop: error: can't find the mount point: {0}, please cheack and retry\n".format(args["mount_point"]))
-        sys.exit(0)
+        os._exit(0)
 
     signal.signal(signal.SIGUSR1, sigusr1_handler)
 

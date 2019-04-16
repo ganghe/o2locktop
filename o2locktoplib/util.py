@@ -19,6 +19,12 @@ if "linux" in platform.system().lower():
 else:
     LINUX = False
 
+def is_passwdless_ssh_set(ip):
+    prefix = "ssh -oBatchMode=yes root@{0} ".format(ip)
+    sh = shell.shell(prefix + "uname")
+    ret = sh.output()
+    return (len(ret) != 0)
+
 def get_remote_path(ip):
     prefix = "ssh root@{0} ".format(ip)
     cmd = "echo '$PATH'"
@@ -196,7 +202,7 @@ def get_dlm_lockspaces(ip=None):
     return None
 
 def get_dlm_lockspace_mp(ip, mount_point):
-    prefix = "ssh root@{0} ".format(ip) if ip else ""
+    prefix = "ssh -oBatchMode=yes -oConnectTimeout=6 root@{0} ".format(ip) if ip else ""
     cmd = "o2info --volinfo {0} | grep UUID".format(mount_point)
     sh = shell.shell(prefix + cmd)
     output = sh.output()
