@@ -116,7 +116,7 @@ optional arguments:
   -h, --help         show this help message and exit
   -n NODE_IP         OCFS2 node IP address for ssh
   -o LOG_FILE        log path
-  -l DISPLAY_LENGTH  number of lock records to display, the default is 15
+  -l DISPLAY_LENGTH  number of lock records to display
   -V, --version      print the current version of o2locktop and exit
   -d, --debug        show all the inode including the system inode number
 

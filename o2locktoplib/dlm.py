@@ -3,6 +3,7 @@
 
 
 from multiprocessing.dummy import Pool as ThreadPool
+import multiprocessing
 import sys
 import signal
 import threading
@@ -25,6 +26,7 @@ _debug = False
 
 LOCK_LEVEL_PR = 0
 LOCK_LEVEL_EX = 1
+KEEP_HISTORY_CNT = 2
 
 
 class LockName:
@@ -115,7 +117,7 @@ class Shot:
         keys = [i[0] for i in Shot.debug_format_v3]
         for k in keys:
             v = getattr(self, k)
-            ret.append("{} : {}".format(k, v))
+            ret.append("{0} : {1}".format(k, v))
         return "\n".join(ret)
 
     def legal(self):
@@ -132,10 +134,10 @@ class Shot:
         return self.name.inode_type
 
 class Lock():
-    def __init__(self, node, keep_history_cnt=2):
+    def __init__(self, node):
         self._node = node
-        self._shots= []
-        self.keep_history_cnt = keep_history_cnt
+        self._shots= [None, None]
+        self.keep_history_cnt = KEEP_HISTORY_CNT
         self.refresh_flag = False
 
     @property
@@ -188,10 +190,6 @@ class Lock():
         delta_num = self._get_latest_data_field_delta(total_num_field)
         #(total_time, total_num, key_indexn)
         if delta_time < 0 or delta_num < 0:
-            '''
-            with open("wrong.txt",'a+') as w:
-                w.write("delta_time:{} ,delta_num:{}\n".format(delta_time,delta_num))
-            '''
             delta_time = self._get_latest_data_field_delta_abs(total_time_field)//ratio
             delta_num = self._get_latest_data_field_delta_abs(total_num_field)
         if delta_time and delta_num:
@@ -199,7 +197,7 @@ class Lock():
         return 0, 0, 0
 
     def has_delta(self):
-        return len(self._shots) >= 2
+        return self._shots[0] != None and self._shots[1] != None
 
     def append(self, shot):
         if not hasattr(self, "_name"):
@@ -207,11 +205,12 @@ class Lock():
         else:
             assert(self._name == shot.name)
 
-        if self.keep_history_cnt >= 2 and len(self._shots) >= self.keep_history_cnt :
-            #print(len(self._shots))
-            del(self._shots[0])
-
-        self._shots.append(shot)
+        if self._shots[0] == None:
+            self._shots[0] = shot
+        else:
+            #del self._shots[0]
+            self._shots[0] = self._shots[1]
+            self._shots[1] = shot
         self.refresh_flag = True
 
         if not _debug:
@@ -255,8 +254,10 @@ class Lock():
 
     def _get_data_field_indexed(self, data_field, index = -1):
         try:
-            ret =getattr(self._shots[index], data_field)
-            return ret
+            ret = getattr(self._shots[index], data_field)
+            if ret != None:
+                return ret
+            return 0
         except:
             return None
 
@@ -418,7 +419,6 @@ class LockSetGroup():
 
     def __init__(self, max_sys_inode_num, lock_space, max_length = 600):
         self.lock_set_list = []
-        #self.lock_name_to_lock_set = {}
         self._max_sys_inode_num = max_sys_inode_num 
         self.lock_space = lock_space
         self._debug = self.lock_space._debug
@@ -426,7 +426,6 @@ class LockSetGroup():
         self._max_length = max_length
 
     def append(self, lock_set):
-        #self.lock_name_to_lock_set[lock_set.name] = lock_set
         lock_set.get_key_index()
         if len(self.lock_set_list) >= self._max_length:
             new_key_index = lock_set.key_index
@@ -466,21 +465,6 @@ class LockSetGroup():
                         break
                     else:
                         end = middle
-
-            ''' 
-            if util.PY2:
-                for i in xrange(self._max_length-1):
-                    if new_key_index >= self.lock_set_list[i].key_index: 
-                        self.lock_set_list.insert(i,lock_set)    
-                        del self.lock_set_list[-1]
-                        break
-            else:
-                for i in range(self._max_length-1):
-                    if new_key_index >= self.lock_set_list[i].key_index: 
-                        self.lock_set_list.insert(i,lock_set)    
-                        del self.lock_set_list[-1]
-                        break
-            '''
         else:
             self.lock_set_list.append(lock_set)
 
@@ -553,7 +537,6 @@ class Node:
     def __init__(self, lock_space, node_name=None):
         self._lock_space = lock_space
         self._locks = {}
-        #self._locks_temp = []
         self.major, self.minor, self.mount_point = \
             util.lockspace_to_device(self._lock_space.name, node_name)
         self._node_name = node_name
@@ -571,7 +554,7 @@ class Node:
         return self._locks
 
     def __str__(self):
-        ret = "lock space: {}\n mount point: {}".format(
+        ret = "lock space: {0}\n mount point: {1}".format(
             self._lock_space.name, self.mount_point)
         return ret
 
@@ -585,33 +568,14 @@ class Node:
             return
         shot_name = shot.name
         if shot_name not in self._locks:
-            self._locks[shot_name] = Lock(self)
-        lock = self._locks[shot_name]
-        lock.append(shot)
-        self.lock_space.add_lock_name(shot_name)
-        self.lock_space.add_lock_type(shot_name)
-    '''
-    def process_one_shot(self, raw_string):
-        shot  = Shot(raw_string)
-        if not shot.legal():
-            return
-        shot_name = shot.name
-        if shot_name not in self._locks_temp:
-            self._locks_temp.append(shot_name)
+            lock_tmp = Lock(self)
+            lock_tmp.append(shot)
+            self._locks[shot_name] = lock_tmp
+        else:
+            self._locks[shot_name].append(shot)
+        self._lock_space.add_lock_name(shot_name)
+        self._lock_space.add_lock_type(shot_name)
 
-    def process_all_shot(self):
-        keys = self._locks.keys()
-        diff1 = set(keys) - set(self._locks_temp)       
-        diff2 = set(self._locks_temp) - set(keys)       
-        for i in diff1:
-            self._locks.pop(i)
-        for shot_name in diff2:
-        #if shot_name not in self._locks:
-            self._locks[shot_name] = Lock(self)
-            lock = self._locks[shot_name]
-            lock.append(shot)
-            self.lock_space.add_lock_name(shot_name)
-    '''
     def del_unfreshed_node(self):
         for key in self._locks.keys():
             if self._locks[key].refresh_flag == False:
@@ -628,18 +592,42 @@ class Node:
                     self._locks.pop(key)
             self._locks[key].refresh_flag = False
 
-    def run_once(self):
-        if self.is_local_node():
-            _cat = cat.gen_cat('local', self.lock_space.name)
-        else:
-            _cat = cat.gen_cat('ssh', self.lock_space.name, self.name)
-        raw_shot_strs = _cat.get()
-        for i in raw_shot_strs:
+    def process_all_slot_worker(self, raw_slot_strs, run_once_finished_semaphore):
+        for i in raw_slot_strs:
             self.process_one_shot(i)
-        if config.del_unfreshed_node:
-            self.del_unfreshed_node()
+        run_once_finished_semaphore.release()
+
+    def run_once_consumer(self, sort_finished_semaphore, run_once_finished_semaphore):
+        while True:
+            # the next line must before semaphore,
+            raw_slot_strs = yield ''
+            sort_finished_semaphore.acquire()
+            if not raw_slot_strs:
+                return
+            if config.debug:
+                print("[DEBUG] got the data on node {0}".format(self._node_name))
+            consumer_process = threading.Thread(target=self.process_all_slot_worker, args=(raw_slot_strs, run_once_finished_semaphore))
+            consumer_process.daemon = True
+            consumer_process.start()
+
+
+    def run_once(self, consumer):
+        if util.PY2:
+            consumer.next()
         else:
-            self.add_last_slot_to_unfreshed_node()
+            consumer.__next__()
+        while True:
+            now = time.time()
+            if self.is_local_node():
+                _cat = cat.gen_cat('local', self.lock_space.name)
+            else:
+                _cat = cat.gen_cat('ssh', self.lock_space.name, self.name)
+            raw_slot_strs = _cat.get()
+            if config.debug:
+                print("[DEBUG] cat takes {0}s on node {1}".format(time.time() - now, self._node_name))
+            consumer.send(raw_slot_strs)
+        consumer.close()
+        
 
     def __contains__(self, item):
         return item in self._locks
@@ -676,22 +664,28 @@ class LockSpace:
     def stop(self):
         self.should_stop = True
 
-    def run(self, printer_queue, sync=False, interval=5, ):
+    def run(self, printer_queue, interval=5, ):
+        self._lock_names = []
+        self._thread_list = []
+        self.run_once_finished_semaphore = []
+        self.sort_finished_semaphore = []
+        for node_name, node in self._nodes.items():
+            temp_run_once_finished_semaphore = threading.Semaphore(0)
+            self.run_once_finished_semaphore.append(temp_run_once_finished_semaphore)
+            temp_sort_finished_semaphore = threading.Semaphore(1)
+            self.sort_finished_semaphore.append(temp_sort_finished_semaphore)
+            th = threading.Thread(target=node.run_once, args=(node.run_once_consumer(temp_sort_finished_semaphore, temp_run_once_finished_semaphore),))
+            self._thread_list.append(th)
+        for th in self._thread_list:
+            th.start()
+        if config.debug:
+            print("[DEBUG] the length of thread list is {0}".format(len(self._thread_list)))
         while not self.should_stop:
-            self._lock_names = []
+            if config.debug:
+                print("[DEBUG] the length of semaphore list is {0}".format(len(self.run_once_finished_semaphore)))
+            for semaphore in self.run_once_finished_semaphore:
+                semaphore.acquire()
             start = time.time()
-            if sync:
-                for node_name, node in self._nodes.items():
-                    node.run_once()
-            else:
-                self._thread_list = []
-                for node_name, node in self._nodes.items():
-                    th = threading.Thread(target=node.run_once)
-                    self._thread_list.append(th)
-                for th in self._thread_list:
-                    th.start()
-                for th in self._thread_list:
-                    th.join()
             lock_space_report = self.report_once()
             printer_queue.put(
                             {'msg_type':'new_content',
@@ -699,6 +693,11 @@ class LockSpace:
                             'detailed':lock_space_report['detailed'],
                             'rows':config.ROWS}
                             )
+            if config.debug:
+                num_of_len = len(self._nodes)
+                print("[DEBUG] the num of locke to release is {0}".format(num_of_len))
+            for semaphore in self.sort_finished_semaphore:
+                semaphore.release()
             end = time.time()
             if not self.first_run:
                 new_interval = interval - (end - start)
@@ -740,9 +739,10 @@ class LockSpace:
 
     def add_lock_name(self, lock_name):
         with self._mutex:
-            if lock_name in self._lock_names:
-                return
             self._lock_names.append(lock_name)
+
+    def reduce_lock_name(self):
+        self._lock_names = list(set(self._lock_names))
 
     def add_lock_type(self, lock_name):
         with self._mutex:
@@ -753,6 +753,11 @@ class LockSpace:
 
 
     def report_once(self):
+        if config.debug:
+            print("[DEBUG] in LockSpace.report_once, befor reduce_lock_name, the length of lock_name is {0}".format(len(self._lock_names)))
+        self.reduce_lock_name()
+        if config.debug:
+            print("[DEBUG] in LockSpace.report_once, after reduce_lock_name, the length of lock_name is {0}".format(len(self._lock_names)))
         lock_names = self._lock_names
         lsg = LockSetGroup(self._max_sys_inode_num, self)
         for lock_name in lock_names:

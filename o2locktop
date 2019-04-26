@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
+# just a test
+# just a test too
 
 from __future__ import print_function
 import threading
@@ -112,9 +114,9 @@ EXAMPLES:
                         action='store',
                         help='log path')
 
-    parser.add_argument('-l', metavar='DISPLAY_LENGTH', nargs=1,
-                        dest='display_len', type=int, action='store',
-                        help='number of lock records to display, the default is 15')
+    parser.add_argument('-l', metavar='DISPLAY_LENGTH',
+                        dest='display_len', type=int,
+                        help='number of lock records to display')
 
     parser.add_argument('-V','--version',action="store_true", 
                         help='the current version of o2locktop')
@@ -264,6 +266,10 @@ def local_cmd_test():
 def main():
     args = parse_args()
 
+    # can also use dup2
+    #tmp_stderr = TemporaryFile('w+t')
+    #sys.stderr = tmp_stderr
+
     @retry(10)
     def sigcont_handler(signum, frame):
         keyboard.set_terminal()
@@ -305,10 +311,6 @@ def main():
     if args["mode"] == "local":
         nodes = None
 
-    # can also use dup2
-    tmp_stderr = TemporaryFile('w+t')
-    sys.stderr = tmp_stderr
-
     for p in process_list:
         p.join()
 
@@ -322,7 +324,7 @@ def main():
                                         args=(lock_space_str, max_sys_inode_num, debug, display_len, nodes, printer_queue)
                                         )
 
-    lock_space_process.daemon = True
+    #lock_space_process.daemon = True
     printer_process.start()
     lock_space_process.start()
 
