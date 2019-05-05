@@ -101,7 +101,8 @@ class Shot:
     def __init__(self, source_str):
         self.source = source_str.strip()
         strings = source_str.strip().split()
-        assert(int(strings[0].lstrip("0x")) == 3)
+        debug_ver = int(strings[0].lstrip("0x"))
+        assert(debug_ver == 3 or debug_ver == 4)
         i = 0
         for item in Shot.debug_format_v3:
             k, v = item[0], item[1]
@@ -207,6 +208,9 @@ class Lock():
 
         if self._shots[0] == None:
             self._shots[0] = shot
+            return
+        if self._shots[1] == None:
+            self._shots[1] = shot
         else:
             #del self._shots[0]
             self._shots[0] = self._shots[1]
@@ -263,6 +267,8 @@ class Lock():
 
     def _get_latest_data_field_delta(self, data_field):
         if not self.has_delta():
+            if self._shots[0] != None:
+                return self._shots[0]
             return 0
         latter = self._get_data_field_indexed(data_field, -1)
         former = self._get_data_field_indexed(data_field, -2)
@@ -273,7 +279,10 @@ class Lock():
         if not self.has_delta():
             return 0
         '''
-        return int(self._get_data_field_indexed(data_field, -1))
+        ret = self._get_data_field_indexed(data_field, -1)
+        if ret != None:
+            return int(ret)
+        return 0
 
     def _lock_level_2_field(self, lock_level):
         if lock_level == LOCK_LEVEL_PR:
@@ -600,15 +609,18 @@ class Node:
     def run_once_consumer(self, sort_finished_semaphore, run_once_finished_semaphore):
         while True:
             # the next line must before semaphore,
-            raw_slot_strs = yield ''
+            (raw_slot_strs, sleep_time) = yield ''
             sort_finished_semaphore.acquire()
             if not raw_slot_strs:
-                return
+                run_once_finished_semaphore.release()
+                continue
             if config.debug:
                 print("[DEBUG] got the data on node {0}".format(self._node_name))
             consumer_process = threading.Thread(target=self.process_all_slot_worker, args=(raw_slot_strs, run_once_finished_semaphore))
             consumer_process.daemon = True
             consumer_process.start()
+            if sleep_time > 0:
+                time.sleep(sleep_time)
 
 
     def run_once(self, consumer):
@@ -617,15 +629,19 @@ class Node:
         else:
             consumer.__next__()
         while True:
-            now = time.time()
+            start = time.time()
             if self.is_local_node():
                 _cat = cat.gen_cat('local', self.lock_space.name)
             else:
                 _cat = cat.gen_cat('ssh', self.lock_space.name, self.name)
             raw_slot_strs = _cat.get()
+            cat_time = time.time() - start
             if config.debug:
-                print("[DEBUG] cat takes {0}s on node {1}".format(time.time() - now, self._node_name))
-            consumer.send(raw_slot_strs)
+                print("[DEBUG] cat takes {0}s on node {1}".format(cat_time, self._node_name))
+            if self._lock_space.first_run:
+                consumer.send((raw_slot_strs, 1-cat_time-cat_time))
+            else:
+                consumer.send((raw_slot_strs, config.interval-cat_time-cat_time))
         consumer.close()
         
 
@@ -681,11 +697,11 @@ class LockSpace:
         if config.debug:
             print("[DEBUG] the length of thread list is {0}".format(len(self._thread_list)))
         while not self.should_stop:
+            start = time.time()
             if config.debug:
                 print("[DEBUG] the length of semaphore list is {0}".format(len(self.run_once_finished_semaphore)))
             for semaphore in self.run_once_finished_semaphore:
                 semaphore.acquire()
-            start = time.time()
             lock_space_report = self.report_once()
             printer_queue.put(
                             {'msg_type':'new_content',
@@ -704,6 +720,9 @@ class LockSpace:
                 if new_interval > 0:
                     util.sleep(new_interval)
             else:
+                new_interval = 1 - (end - start)
+                if new_interval > 0:
+                    util.sleep(new_interval)
                 self.first_run = False
 
     @property

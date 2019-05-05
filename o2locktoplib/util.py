@@ -19,6 +19,22 @@ if "linux" in platform.system().lower():
 else:
     LINUX = False
 
+def check_support_debug_v4_and_get_interval(lockspace, ip):
+    prefix = "ssh root@{0} ".format(ip)
+    cmd = "cat /sys/kernel/debug/ocfs2/{lockspace}/locking_filter".format(
+            lockspace=lockspace)
+    sh = shell.shell(prefix + cmd)
+    ret = sh.output()
+    return ret
+
+def set_debug_v4_interval(lockspace, ip, interval=0):
+    prefix = "ssh root@{0} ".format(ip)
+    cmd = "echo {interval} \> /sys/kernel/debug/ocfs2/{lockspace}/locking_filter".format(
+            lockspace=lockspace,
+            interval=interval)
+    sh = shell.shell(prefix + cmd)
+    ret = sh.output()
+
 def is_passwdless_ssh_set(ip):
     prefix = "ssh -oBatchMode=yes root@{0} ".format(ip)
     sh = shell.shell(prefix + "uname")
@@ -100,8 +116,8 @@ def get_one_cat(lockspace, ip=None):
                 lockspace=lockspace)
     sh = shell.shell(prefix + cmd)
     ret = sh.output()
-    if len(ret) == 0:
-        eprint("{cmd} on {ip} return len=0".format(cmd=cmd, ip=ip))
+    if len(ret) == 0 and config.debug:
+        eprint("[DEBUG] {cmd} on {ip} return len=0".format(cmd=cmd, ip=ip))
     return ret
 
 # fs_stat
