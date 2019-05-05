@@ -19,6 +19,28 @@ if "linux" in platform.system().lower():
 else:
     LINUX = False
 
+def check_support_debug_v4_and_get_interval(lockspace, ip):
+    prefix = "ssh root@{0} ".format(ip)
+    cmd = "cat /sys/kernel/debug/ocfs2/{lockspace}/locking_filter".format(
+            lockspace=lockspace)
+    sh = shell.shell(prefix + cmd)
+    ret = sh.output()
+    return ret
+
+def set_debug_v4_interval(lockspace, ip, interval=0):
+    prefix = "ssh root@{0} ".format(ip)
+    cmd = "echo {interval} \> /sys/kernel/debug/ocfs2/{lockspace}/locking_filter".format(
+            lockspace=lockspace,
+            interval=interval)
+    sh = shell.shell(prefix + cmd)
+    ret = sh.output()
+
+def is_passwdless_ssh_set(ip):
+    prefix = "ssh -oBatchMode=yes root@{0} ".format(ip)
+    sh = shell.shell(prefix + "uname")
+    ret = sh.output()
+    return (len(ret) != 0)
+
 def get_remote_path(ip):
     prefix = "ssh root@{0} ".format(ip)
     cmd = "echo '$PATH'"
@@ -94,8 +116,8 @@ def get_one_cat(lockspace, ip=None):
                 lockspace=lockspace)
     sh = shell.shell(prefix + cmd)
     ret = sh.output()
-    if len(ret) == 0:
-        eprint("{cmd} on {ip} return len=0".format(cmd=cmd, ip=ip))
+    if len(ret) == 0 and config.debug:
+        eprint("[DEBUG] {cmd} on {ip} return len=0".format(cmd=cmd, ip=ip))
     return ret
 
 # fs_stat
@@ -196,7 +218,7 @@ def get_dlm_lockspaces(ip=None):
     return None
 
 def get_dlm_lockspace_mp(ip, mount_point):
-    prefix = "ssh root@{0} ".format(ip) if ip else ""
+    prefix = "ssh -oBatchMode=yes -oConnectTimeout=6 root@{0} ".format(ip) if ip else ""
     cmd = "o2info --volinfo {0} | grep UUID".format(mount_point)
     sh = shell.shell(prefix + cmd)
     output = sh.output()
@@ -227,9 +249,13 @@ def get_dlm_lockspace_max_sys_inode_number(ip, mount_point):
     else:
         return None
     # TODO:fix shell
-    prefix = "ssh root@{0} ".format(ip) if ip else ""
-    cmd = "debugfs.ocfs2 -R \"ls //\" {0}".format(filesystem)
-    output = shell.shell(prefix + cmd).output()
+    if ip != None:
+        prefix = "ssh root@{0} ".format(ip) if ip else ""
+        cmd = "'debugfs.ocfs2 -R \"ls //\" {0}'".format(filesystem)
+        output = shell.shell(prefix + cmd).output()
+    else:
+        cmd = "debugfs.ocfs2 -R \"ls //\" {0}".format(filesystem)
+        output = os.popen(cmd).readlines()
     if len(output) > 0:
         return int(output[-1].split()[0])
     return None
