@@ -147,7 +147,7 @@ EXAMPLES:
     if args.host_list:
         if not args.mount_point:
             util.eprint("\no2locktop: error: ocfs2 mount point is needed\n")
-            print(usage)
+            parser.print_usage()
             sys.exit(0)
         for i in args.host_list:
             node_list.append(i)
@@ -164,7 +164,7 @@ EXAMPLES:
     else:
         if not args.mount_point:
             util.eprint("\no2locktop: error: ocfs2 mount point is needed\n")
-            print(usage)
+            parser.print_usage()
             sys.exit(0)
         return {
                 "mode":"local",
