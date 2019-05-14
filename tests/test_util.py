@@ -1,7 +1,42 @@
+import sys
+sys.path.append("../")
 import os
 from o2locktoplib import util
+from o2locktoplib import shell
 import config
 import pytest
+
+def test_check_support_debug_v4_and_get_interval():
+    lockspace = config.lockspace
+    ip = "127.0.0.1"
+    ret = util.check_support_debug_v4_and_get_interval(lockspace, ip)
+    cmd = "cat /sys/kernel/debug/ocfs2/{lockspace}/locking_filter".format(
+            lockspace=lockspace)
+    tmp_str = os.popen(cmd).read()
+    if tmp_str == '':
+        assert len(ret) == 0, "check_support_debug_v4_and_get_interval failed, the version should be 3"
+    else:
+        assert ret[0] == tmp_str.strip(), "check_support_debug_v4_and_get_interval failed, the version should be 4, but get the wrong filter value"
+
+def test_set_debug_v4_interval():
+    interval = util.check_support_debug_v4_and_get_interval(config.lockspace, "127.0.0.1")
+    if len(interval) == 0:
+        return
+    else:
+        util.set_debug_v4_interval(config.lockspace, "127.0.0.1", interval="1"+interval[0])
+        assert "1"+interval[0] == util.check_support_debug_v4_and_get_interval(config.lockspace, '127.0.0.1')[0]
+        util.set_debug_v4_interval(config.lockspace, "127.0.0.1", interval=interval[0])
+
+def test_is_passwdless_ssh_set():
+    ret = util.is_passwdless_ssh_set("127.0.0.1")
+    assert ret == True or ret == False, "is_passwdless_ssh_set test failed"
+    ret = util.is_passwdless_ssh_set("127.0.0.1", "theUserIsARandomString76892891")
+    assert ret == False, "is_passwdless_ssh_set test failed"
+
+def test_get_remote_path():
+    ret = util.get_remote_path("127.0.0.1")
+    assert "/bin" in ret[0] and "/sbin" in ret[0], "get_remote_path test error"
+
 
 def test_cmd_is_exist():
     assert util.cmd_is_exist(['ls'])[0], "cmd_is_exit test faild"
@@ -35,6 +70,10 @@ def test_is_kernel_ocfs2_fs_stats_enabled():
         assert util.is_kernel_ocfs2_fs_stats_enabled() == False, "is_kernel_ocfs2_fs_stats_enabled test faild"
     else:
         assert util.is_kernel_ocfs2_fs_stats_enabled() == True, "is_kernel_ocfs2_fs_stats_enabled test faild"
+
+def test_lockspace_to_device():
+    ret = util.lockspace_to_device(config.lockspace, "127.0.0.1")
+    assert config.mount_point in ret, "lockspace_to_device test failed"
 
 def test_get_dlm_lockspaces():
     lockspaces = util.get_dlm_lockspaces()

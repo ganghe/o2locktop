@@ -11,7 +11,6 @@ import time
 import os
 from o2locktoplib import util
 from o2locktoplib import config
-from o2locktoplib import keyboard
 from o2locktoplib import cat
 
 # cat  -----  output of one time execution of "cat locking_stat"
@@ -70,6 +69,9 @@ class LockName:
         return self._name
 
     def __eq__(self, other):
+        # add to compare with None
+        if other == None:
+            return False
         return self._name == other._name
 
     def __hash__(self):
@@ -131,8 +133,8 @@ class Shot:
         return self.name.inode_num
 
     @property
-    def inode_type(self):
-        return self.name.inode_type
+    def lock_type(self):
+        return self.name.lock_type
 
 class Lock():
     def __init__(self, node):
@@ -326,7 +328,7 @@ class LockSet():
     
     @property
     def inode_num(self):
-        if hasattr(self, "_name"):
+        if hasattr(self, "_name") and self._name != None:
             return self._lock_list[0].inode_num
         return None
 
