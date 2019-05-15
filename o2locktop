@@ -43,7 +43,7 @@ while True:
                 sys.path.append(pk_path)
    
 
-def parse_args():
+def parse_args(args=None):
 
     DESCRIPTION = """\
 It is a top-like tool to monitor OCFS2 DLM lock usage in the cluster, and can
@@ -128,13 +128,15 @@ EXAMPLES:
     parser.add_argument('mount_point', metavar='MOUNT_POINT', nargs='?',
                         help='the OCFS2 mount point, eg. /mnt/shared')
 
-    args = parser.parse_args()
+    args = parser.parse_args(args=args)
 
     # FIXME: to delete ZERO argument detection after implementing the new feat to
     # allow users run this tool without argument inside the ocfs2 cluster. 
+    '''
     if len(sys.argv) < 2:
         parser.print_usage()
         sys.exit(1)
+    '''
 
     node_list = []
     met_colon = False
@@ -300,6 +302,7 @@ def main():
     @retry(10)
     def sigcont_handler(signum, frame):
         keyboard.set_terminal()
+        pass
 
     @retry(10)
     def sigusr1_handler(signum, frame):
@@ -374,3 +377,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         #print("Bye")
         keyboard.reset_terminal()
+        pass
