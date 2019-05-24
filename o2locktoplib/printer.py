@@ -6,7 +6,6 @@ import multiprocessing
 import os, sys
 from o2locktoplib import util
 from o2locktoplib import config
-from o2locktoplib import keyboard
 from o2locktoplib.retry import retry
 
 SIMPLE_DISPLAY=0
@@ -37,6 +36,10 @@ class Printer():
             else:
                 for i in self.content[self.display_mode].split('\n')[:rows+4]:
                     print(i)
+            # Because in some case(such as unix output redirect), the stdout device is not
+            # the screen, it maybe a file or other process, so we must flush the output in 
+            # that case
+            sys.stdout.flush()
 
                 
 

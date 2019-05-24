@@ -35,8 +35,8 @@ def set_debug_v4_interval(lockspace, ip, interval=0):
     sh = shell.shell(prefix + cmd)
     ret = sh.output()
 
-def is_passwdless_ssh_set(ip):
-    prefix = "ssh -oBatchMode=yes root@{0} ".format(ip)
+def is_passwdless_ssh_set(ip, user="root"):
+    prefix = "ssh -oBatchMode=yes {user}@{ip} ".format(user=user,ip=ip)
     sh = shell.shell(prefix + "uname")
     ret = sh.output()
     return (len(ret) != 0)
