@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
+"""
+The most important library of o2locktop
+The main fuction of this file is to collect
+classify and statistics the locks of the cluster
+"""
 
-
-from multiprocessing.dummy import Pool as ThreadPool
-import multiprocessing
-import sys
-import signal
 import threading
 import time
 import os
@@ -21,7 +21,7 @@ from o2locktoplib import cat
 # LockSpace ---- A Lock should only belongs to one LockSpace
 #
 
-_debug = False
+_DEBUG = False
 
 LOCK_LEVEL_PR = 0
 LOCK_LEVEL_EX = 1
@@ -30,6 +30,7 @@ KEEP_HISTORY_CNT = 2
 
 class LockName:
     """
+    The Lock format is as follows
     M    000000 0000000000000005        6434f530
     type  PAD   blockno(hex)            generation(hex)
     [0:1][1:1+6][1+6:1+6+16]            [1+6+16:]
@@ -41,43 +42,61 @@ class LockName:
 
     @property
     def lock_type(self):
+        """
+        Return the lock type of the lock, e.g M
+        """
         lock_name = self._name
         return lock_name[0]
 
     @property
     def inode_num(self):
+        """
+        Return the inode number of the lock
+        If the lock type is 'N', use the short inode format,
+        else use the normal inode format.(You can refer ocfs2 source code)
+        """
         if self._name[0] != "N":
             start, end = 7, 7+16
             lock_name = self._name
             return int(lock_name[start : end], 16)
         # dentry lock
-        else:
-            return int(self._name[-8:], 16)
+        return int(self._name[-8:], 16)
 
     @property
     def generation(self):
+        """
+        Return the generation of the lock, not used in the new version
+        """
         return self._name[-8:]
 
     @property
     def short_name(self):
+        """
+        Return the short format of a lock, just use lock type and inode number
+        to represent a lock
+        """
         if util.PY2:
             return "{0:4} {1:12}".format(self.lock_type, str(self.inode_num))
-        else:
-            return "{:4} {:12}".format(self.lock_type, str(self.inode_num))
+        return "{:4} {:12}".format(self.lock_type, str(self.inode_num))
 
     def __str__(self):
         return self._name
 
     def __eq__(self, other):
         # add to compare with None
-        if other == None:
+        if not other:
             return False
-        return self._name == other._name
+        return self._name == str(other)
 
     def __hash__(self):
         return hash(self._name)
 
 class Shot:
+    """
+    The Shot class represent a complete line in the locking_stat file
+    The line includes all the information of the lock
+    Support the ocfs2 debug info version3 and version4
+    """
     debug_format_v3 = (
         ("debug_ver", 1),
         ("name", 1),
@@ -107,39 +126,51 @@ class Shot:
         assert(debug_ver == 3 or debug_ver == 4)
         i = 0
         for item in Shot.debug_format_v3:
-            k, v = item[0], item[1]
-            var_name = k
-            var_len = v
+            # key, value = item[0], item[1]
+            var_name = item[0]
+            var_len = item[1]
             value = "".join(strings[i: i + var_len])
             setattr(self, var_name, value)
             i += var_len
         self.name = LockName(self.name)
 
     def __str__(self):
+        """
+        Put the shot by a friendly format
+        """
         ret = []
         keys = [i[0] for i in Shot.debug_format_v3]
         for k in keys:
-            v = getattr(self, k)
-            ret.append("{0} : {1}".format(k, v))
+            value = getattr(self, k)
+            ret.append("{0} : {1}".format(k, value))
         return "\n".join(ret)
 
     def legal(self):
-        if 0 == self.name.inode_num:
+        """
+        Check if the inode number that decoded from the input raw string is legal
+        """
+        if self.name.inode_num == 0:
             return False
         return True
 
     @property
     def inode_num(self):
+        """
+        Return the inode number of the input raw string
+        """
         return self.name.inode_num
 
     @property
     def lock_type(self):
+        """
+        Return the type of the input raw string
+        """
         return self.name.lock_type
 
 class Lock():
     def __init__(self, node):
         self._node = node
-        self._shots= [None, None]
+        self._shots = [None, None]
         self.keep_history_cnt = KEEP_HISTORY_CNT
         self.refresh_flag = False
 
@@ -206,12 +237,12 @@ class Lock():
         if not hasattr(self, "_name"):
             self._name = shot.name
         else:
-            assert(self._name == shot.name)
+            assert self._name == shot.name
 
-        if self._shots[0] == None:
+        if not self._shots[0]:
             self._shots[0] = shot
             return
-        if self._shots[1] == None:
+        if not self._shots[1]:
             self._shots[1] = shot
         else:
             #del self._shots[0]
@@ -219,12 +250,12 @@ class Lock():
             self._shots[1] = shot
         self.refresh_flag = True
 
-        if not _debug:
+        if not _DEBUG:
             return
         print(self.node.name, self.name, self.get_key_index())
         for level in [LOCK_LEVEL_PR, LOCK_LEVEL_EX]:
             total_time_field, total_num_field = self._lock_level_2_field(level)
-            time_line =self.get_line(total_time_field)
+            time_line = self.get_line(total_time_field)
             num_line = self.get_line(total_num_field)
             if num_line[-1] - num_line[0] == 0:
                 return
@@ -258,7 +289,7 @@ class Lock():
         return avg_key_index//2
 
 
-    def _get_data_field_indexed(self, data_field, index = -1):
+    def _get_data_field_indexed(self, data_field, index=-1):
         try:
             ret = getattr(self._shots[index], data_field)
             if ret != None:
@@ -289,7 +320,7 @@ class Lock():
     def _lock_level_2_field(self, lock_level):
         if lock_level == LOCK_LEVEL_PR:
             total_time_field = "lock_total_prmode"
-            total_num_field =  "lock_num_prmode"
+            total_num_field = "lock_num_prmode"
         elif lock_level == LOCK_LEVEL_EX:
             total_time_field = "lock_total_exmode"
             total_num_field = "lock_num_exmode"
@@ -311,7 +342,7 @@ class LockSet():
 
         name = lock_list[0].name
         for i in lock_list:
-            assert(i.name == name)
+            assert i.name == name
 
         self._lock_list = lock_list
         self._nodes_count = len(lock_list)
@@ -325,7 +356,7 @@ class LockSet():
         if hasattr(self, "_name"):
             return self._name
         return None
-    
+
     @property
     def inode_num(self):
         if hasattr(self, "_name") and self._name != None:
@@ -347,13 +378,12 @@ class LockSet():
         assert lock.node not in self.node_to_lock_dict
         self.node_to_lock_dict[lock.node] = lock
 
-    def report_once(self, detail=False):
-        if len(self.node_to_lock_dict) == 0:
-            return
+    def report_once(self):
+        if not self.node_to_lock_dict:
+            return None
 
-        ret = ""
-        res_ex = {"total_time":0,"total_num":0, "key_index":0}
-        res_pr = {"total_time":0,"total_num":0, "key_index":0}
+        res_ex = {"total_time":0, "total_num":0, "key_index":0}
+        res_pr = {"total_time":0, "total_num":0, "key_index":0}
         body = ""
 
         node_to_lock_dict_len = len(self.node_to_lock_dict)
@@ -383,14 +413,14 @@ class LockSet():
             node_name = util.get_hostname() if not _node.name else _node.name
             if temp_index < node_to_lock_dict_len:
                 node_detail_str = node_detail_format.format(
-                        "├─"+node_name,
-                        ex_total_num, ex_total_time, ex_key_index,
-                        pr_total_num, pr_total_time, pr_key_index)
+                    "├─"+node_name,
+                    ex_total_num, ex_total_time, ex_key_index,
+                    pr_total_num, pr_total_time, pr_key_index)
             else:
                 node_detail_str = node_detail_format.format(
-                        "└─"+node_name,
-                        ex_total_num, ex_total_time, ex_key_index,
-                        pr_total_num, pr_total_time, pr_key_index)
+                    "└─"+node_name,
+                    ex_total_num, ex_total_time, ex_key_index,
+                    pr_total_num, pr_total_time, pr_key_index)
 
             if body == "":
                 body = node_detail_str
@@ -406,15 +436,15 @@ class LockSet():
 
         title_format = LockSetGroup.DATA_FORMAT
         title = title_format.format(
-                self.name.short_name,
-                res_ex["total_num"], res_ex["total_time"], res_ex["key_index"],
-                res_pr["total_num"], res_pr["total_time"], res_pr["key_index"])
+            self.name.short_name,
+            res_ex["total_num"], res_ex["total_time"], res_ex["key_index"],
+            res_pr["total_num"], res_pr["total_time"], res_pr["key_index"])
         lock_set_summary = '\n'.join([title, body])
 
         return {'simple':title, "detailed":lock_set_summary}
 
     def get_key_index(self):
-        if len(self._lock_list) == 0:
+        if not self._lock_list:
             return 0
 
         key_index = 0
@@ -428,9 +458,9 @@ class LockSetGroup():
     TITLE_FORMAT = "{0:21}{1:12}{2:12}{3:12}{4:12}{5:12}{6:12}"
     DATA_FORMAT = "{0:21}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
 
-    def __init__(self, max_sys_inode_num, lock_space, max_length = 600):
+    def __init__(self, max_sys_inode_num, lock_space, max_length=600):
         self.lock_set_list = []
-        self._max_sys_inode_num = max_sys_inode_num 
+        self._max_sys_inode_num = max_sys_inode_num
         self.lock_space = lock_space
         self._debug = self.lock_space._debug
         self._sort_flag = False
@@ -442,36 +472,37 @@ class LockSetGroup():
             new_key_index = lock_set.key_index
             if new_key_index == 0:
                 return
-            if self._sort_flag == False:
-                self.lock_set_list.sort(key=lambda x:x.key_index, reverse=True)
+            if not self._sort_flag:
+                self.lock_set_list.sort(key=lambda x: x.key_index, reverse=True)
                 self._sort_flag = True
             begin = 0
-            end = len(self.lock_set_list) - 1 
+            end = len(self.lock_set_list) - 1
             while begin <= end:
                 middle = (begin + end)//2
                 if self.lock_set_list[middle].key_index == new_key_index:
-                    self.lock_set_list.insert(middle,lock_set)
+                    self.lock_set_list.insert(middle, lock_set)
                     del self.lock_set_list[-1]
                     break
                 elif end - begin == 1:
                     if begin == 0 and self.lock_set_list[begin].key_index < new_key_index:
-                        self.lock_set_list.insert(begin,lock_set)
-                    elif end == len(self.lock_set_list)-1 and self.lock_set_list[end].key_index > new_key_index:
+                        self.lock_set_list.insert(begin, lock_set)
+                    elif end == len(self.lock_set_list) - 1 \
+                         and self.lock_set_list[end].key_index > new_key_index:
                         break
                     else:
-                        self.lock_set_list.insert(end,lock_set)
+                        self.lock_set_list.insert(end, lock_set)
                     del self.lock_set_list[-1]
                     break
                 elif self.lock_set_list[middle].key_index > new_key_index:
                     if begin == end and begin != len(self.lock_set_list)-1:
-                        self.lock_set_list.insert(middle+1,lock_set)
+                        self.lock_set_list.insert(middle+1, lock_set)
                         del self.lock_set_list[-1]
                         break
                     else:
                         begin = middle
                 elif self.lock_set_list[middle].key_index < new_key_index:
                     if begin == end:
-                        self.lock_set_list.insert(begin,lock_set)
+                        self.lock_set_list.insert(begin, lock_set)
                         del self.lock_set_list[-1]
                         break
                     else:
@@ -479,25 +510,25 @@ class LockSetGroup():
         else:
             self.lock_set_list.append(lock_set)
 
-    def get_top_n_key_index(self, n, debug=False):
-        if n == None:
+    def get_top_n_key_index(self, top_n, debug=False):
+        if not top_n:
             rows, cols = os.popen('stty size', 'r').read().split()
             if int(cols) < config.COLUMNS:
-                n = (int(rows)//2 - 4)
+                top_n = (int(rows)//2 - 4)
             else:
-                n = (int(rows) - 6)
-            config.ROWS = n
-        if self._sort_flag == False:
-            self.lock_set_list.sort(key=lambda x:x.key_index, reverse=True)
+                top_n = (int(rows) - 6)
+            config.ROWS = top_n
+        if not self._sort_flag:
+            self.lock_set_list.sort(key=lambda x: x.key_index, reverse=True)
         if debug:
-            if len(self.lock_set_list) > n:
-                return self.lock_set_list[:n]
+            if len(self.lock_set_list) > top_n:
+                return self.lock_set_list[:top_n]
             return self.lock_set_list
         ret = []
         for i in self.lock_set_list:
             if int(i.inode_num) > self._max_sys_inode_num:
                 ret.append(i)
-                if len(ret) == n:
+                if len(ret) == top_n:
                     return ret
         return ret
 
@@ -525,7 +556,9 @@ class LockSetGroup():
         lsg_report_simple = lsg_report_simple[:-1]
         lsg_report_detailed = lsg_report_detailed[:-1]
         total_value = 0
-        for key,value in sorted(self.lock_space._lock_types.items(),key = lambda x:x[1], reverse = True):
+        for key, value in sorted(self.lock_space._lock_types.items(),
+                                 key=lambda x: x[1],
+                                 reverse=True):
             types += "{0} {1}, ".format(key, value)
             total_value += value
         types = "total {0}, ".format(total_value) + types
@@ -574,7 +607,7 @@ class Node:
         return self._lock_space
 
     def process_one_shot(self, raw_string):
-        shot  = Shot(raw_string)
+        shot = Shot(raw_string)
         if not shot.legal():
             return
         shot_name = shot.name
@@ -596,8 +629,8 @@ class Node:
 
     def add_last_slot_to_unfreshed_node(self):
         for key in self._locks.keys():
-            if self._locks[key].refresh_flag == False: 
-                if len(self._locks[key]._shots) > 0:
+            if not self._locks[key].refresh_flag:
+                if self._locks[key]._shots:
                     self._locks[key].append(self._locks[key]._shots[-1])
                 else:
                     self._locks.pop(key)
@@ -616,9 +649,10 @@ class Node:
             if not raw_slot_strs:
                 run_once_finished_semaphore.release()
                 continue
-            if config.debug:
+            if config.DEBUG:
                 print("[DEBUG] got the data on node {0}".format(self._node_name))
-            consumer_process = threading.Thread(target=self.process_all_slot_worker, args=(raw_slot_strs, run_once_finished_semaphore))
+            consumer_process = threading.Thread(target=self.process_all_slot_worker,
+                                                args=(raw_slot_strs, run_once_finished_semaphore))
             consumer_process.daemon = True
             consumer_process.start()
             if sleep_time > 0:
@@ -638,14 +672,14 @@ class Node:
                 _cat = cat.gen_cat('ssh', self.lock_space.name, self.name)
             raw_slot_strs = _cat.get()
             cat_time = time.time() - start
-            if config.debug:
+            if config.DEBUG:
                 print("[DEBUG] cat takes {0}s on node {1}".format(cat_time, self._node_name))
             if self._lock_space.first_run:
                 consumer.send((raw_slot_strs, 1-cat_time-cat_time))
             else:
-                consumer.send((raw_slot_strs, config.interval-cat_time-cat_time))
+                consumer.send((raw_slot_strs, config.INTERVAL-cat_time-cat_time))
         consumer.close()
-        
+
 
     def __contains__(self, item):
         return item in self._locks
@@ -658,7 +692,7 @@ class Node:
 
 class LockSpace:
     "One lock space on multiple node"
-    def __init__(self, node_name_list, lock_space, max_sys_inode_num, debug, display_len = 10):
+    def __init__(self, node_name_list, lock_space, max_sys_inode_num, debug, display_len=10):
         #pdb.set_trace()
         self._mutex = threading.Lock()
         self._max_sys_inode_num = max_sys_inode_num
@@ -687,31 +721,33 @@ class LockSpace:
         self._thread_list = []
         self.run_once_finished_semaphore = []
         self.sort_finished_semaphore = []
-        for node_name, node in self._nodes.items():
+        for _, node in self._nodes.items():
             temp_run_once_finished_semaphore = threading.Semaphore(0)
             self.run_once_finished_semaphore.append(temp_run_once_finished_semaphore)
             temp_sort_finished_semaphore = threading.Semaphore(1)
             self.sort_finished_semaphore.append(temp_sort_finished_semaphore)
-            th = threading.Thread(target=node.run_once, args=(node.run_once_consumer(temp_sort_finished_semaphore, temp_run_once_finished_semaphore),))
-            self._thread_list.append(th)
-        for th in self._thread_list:
-            th.start()
-        if config.debug:
+            thread = threading.Thread(
+                target=node.run_once,
+                args=(node.run_once_consumer(temp_sort_finished_semaphore,
+                                             temp_run_once_finished_semaphore),))
+            self._thread_list.append(thread)
+        for thread in self._thread_list:
+            thread.start()
+        if config.DEBUG:
             print("[DEBUG] the length of thread list is {0}".format(len(self._thread_list)))
         while not self.should_stop:
             start = time.time()
-            if config.debug:
-                print("[DEBUG] the length of semaphore list is {0}".format(len(self.run_once_finished_semaphore)))
+            if config.DEBUG:
+                print("[DEBUG] the length of semaphore list is {0}"
+                      .format(len(self.run_once_finished_semaphore)))
             for semaphore in self.run_once_finished_semaphore:
                 semaphore.acquire()
             lock_space_report = self.report_once()
-            printer_queue.put(
-                            {'msg_type':'new_content',
-                            'simple':lock_space_report['simple'],
-                            'detailed':lock_space_report['detailed'],
-                            'rows':config.ROWS}
-                            )
-            if config.debug:
+            printer_queue.put({'msg_type':'new_content',
+                               'simple':lock_space_report['simple'],
+                               'detailed':lock_space_report['detailed'],
+                               'rows':config.ROWS})
+            if config.DEBUG:
                 num_of_len = len(self._nodes)
                 print("[DEBUG] the num of locke to release is {0}".format(num_of_len))
             for semaphore in self.sort_finished_semaphore:
@@ -774,11 +810,15 @@ class LockSpace:
 
 
     def report_once(self):
-        if config.debug:
-            print("[DEBUG] in LockSpace.report_once, befor reduce_lock_name, the length of lock_name is {0}".format(len(self._lock_names)))
+        if config.DEBUG:
+            print("[DEBUG] in LockSpace.report_once, befor reduce_lock_name, "
+                  "the length of lock_name is {0}"
+                  .format(len(self._lock_names)))
         self.reduce_lock_name()
-        if config.debug:
-            print("[DEBUG] in LockSpace.report_once, after reduce_lock_name, the length of lock_name is {0}".format(len(self._lock_names)))
+        if config.DEBUG:
+            print("[DEBUG] in LockSpace.report_once, after reduce_lock_name, "
+                  "the length of lock_name is {0}"
+                  .format(len(self._lock_names)))
         lock_names = self._lock_names
         lsg = LockSetGroup(self._max_sys_inode_num, self)
         for lock_name in lock_names:
@@ -792,8 +832,12 @@ def worker(lock_space_str, max_sys_inode_num, debug, display_len, nodes, printer
     # nodes == None : local mode
     # else remote mode
     try:
-        lock_space = LockSpace(nodes, lock_space_str, max_sys_inode_num, debug, display_len=display_len)
-        lock_space.run(printer_queue, interval=config.interval)
+        lock_space = LockSpace(nodes,
+                               lock_space_str,
+                               max_sys_inode_num,
+                               debug,
+                               display_len=display_len)
+        lock_space.run(printer_queue, interval=config.INTERVAL)
     except KeyboardInterrupt:
         #keyboard.reset_terminal()
         pass
@@ -801,4 +845,3 @@ def worker(lock_space_str, max_sys_inode_num, debug, display_len, nodes, printer
         import traceback
         print(traceback.format_exc())
         exit(0)
-

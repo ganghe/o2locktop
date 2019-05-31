@@ -1,3 +1,5 @@
+import sys
+sys.path.append("../")
 import pytest
 from o2locktoplib.retry import retry
 
