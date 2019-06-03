@@ -451,8 +451,8 @@ class TestLockSetGroup():
         assert ret['simple'].strip().replace(' ', '').replace('\n', '')[18:] == \
         "lockacquisitions:total0,EX0,PR0lockresources:"\
         "total0TYPEINOEXNUMEXTIME(us)EXAVG(us)PRNUMPRTIME(us)PRAVG(us)M5000000"
-        assert ret['detailed'].strip().replace(' ', '').replace('\n', '')[18:] == \
-        "lockacquisitions:total0,EX0,PR0lockresources:"\
+        #assert ret['detailed'].strip().replace(' ', '').replace('\n', '')[18:] == \
+        assert "lockacquisitions:total0,EX0,PR0lockresources:"\
         "total0TYPEINOEXNUMEXTIME(us)EXAVG(us)PRNUMPRTIME(us)PRAVG(us)M5000000├─" in \
         ret['detailed'].strip().replace(' ', '').replace('\n', '')[18:]
 

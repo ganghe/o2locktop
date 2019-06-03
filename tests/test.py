@@ -87,8 +87,8 @@ def create_file(mount_point, creat_file_num=1000):
                 if not os.path.exists(filepath):
                     os.system("touch {0}".format(filepath))
     else:
-        os.system(r'ssh root@{0} "for i in \`seq 0 1000\`; do touch \$i.test; done"'
-                  .format(NODE_LIST[0]))
+        os.system(r'ssh root@{0} "cd {1}; for i in \`seq 0 1000\`; do touch \$i.test; done"'
+                  .format(NODE_LIST[0], mount_point))
 
 USAGE = "Enter q to quit"
 
@@ -502,12 +502,12 @@ def dynamics_test(length, mount_point, node_list):
         flag = False
         for i in total_list:
             if total1 < i:
-                log_info("\033[1;32mdynamics_test OK, the total = {0}, total2 = {1} \033[0m"
+                log_info("\033[1;32mlocal mode dynamics_test OK, the total = {0}, total2 = {1} \033[0m"
                          .format(total1, i))
                 flag = True
                 break
         if not flag:
-            log_err("\033[1;31mdynamics_test failed, the total1 = {0}, total2 = {1}\033[0m"
+            log_err("\033[1;31mlocal modedynamics_test failed, the total1 = {0}, total2 = {1}\033[0m"
                     .format(total1, TOTAL))
     else:
         test_one_fram(length, mount_point)
@@ -533,14 +533,13 @@ def dynamics_test(length, mount_point, node_list):
         LS_FLAG.value = 0
         process.join()
         flag = False
-        for i in total_list:
-            if total1 < i:
-                log_info("\033[1;32mdynamics_test OK, the total = {0}, total2 = {1} \033[0m"
-                         .format(total1, i))
-                flag = True
-                break
+        max_lock_num = max(total_list)
+        if total1 < max_lock_num:
+            log_info("\033[1;32mremote mode dynamics_test OK, the total = {0}, total2 = {1} \033[0m"
+                     .format(total1, max_lock_num))
+            flag = True
         if not flag:
-            log_err("\033[1;31mdynamics_test failed, the total1 = {0}, total2 = {1}\033[0m"
+            log_err("\033[1;31mremote mode dynamics_test failed, the total1 = {0}, total2 = {1}\033[0m"
                     .format(total1, TOTAL))
 
 
@@ -585,11 +584,20 @@ def ls_loop_on_node(mount_point, node):
         sh_script.write("ls -l {0} > /dev/null\n".format(mount_point))
         sh_script.write("sleep 0.1\n")
         sh_script.write("done\n")
-
-    os.popen('scp {file_name} root@{node}:/tmp'.format(file_name=\
+    '''
+    subprocess.call('scp {file_name} root@{node}:/tmp'.format(file_name=\
         os.path.join(FILE_PATH, 'list_file.sh'), node=node))
+    subprocess.call('ssh root@{node} "chmod u+x /tmp/list_file.sh"'.format(node=node))
+    subprocess.call('ssh root@{node} /tmp/list_file.sh > /dev/null'.format(node=node))
+    '''
+    devnull = open('/dev/null', 'w')
+    subprocess.call(['scp',
+                     os.path.join(FILE_PATH, 'list_file.sh'),
+                     'root@{node}:/tmp'.format(node=node)],
+                    stdout=devnull)
     os.popen('ssh root@{node} "chmod u+x /tmp/list_file.sh"'.format(node=node))
     os.popen('ssh root@{node} /tmp/list_file.sh > /dev/null'.format(node=node))
+    devnull.close()
 
 def kill_o2locktop(mount_point=None):
     if mount_point != None:
@@ -626,7 +634,7 @@ def run():
     index = 0
     while True:
         index += 1
-        if index%10 == 1:
+        if index%10 == 2:
             if DEBUG:
                 print("d test")
             dynamics_test(length, mount_point, NODE_LIST)

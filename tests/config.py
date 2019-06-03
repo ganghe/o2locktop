@@ -1,5 +1,5 @@
 mode = ['local', 'remote']
 mount_point = '/mnt/ocfs2'
-lockspace = 'E67C6D4FF0304B25B65214A110619587'
+lockspace = '01C7AA4ED70543718F9A76F35C8F08D4'
 # the length of nodelist must greater than or equal to 2
-nodelist = ["week-sle15sp1-rc1-node1", "10.67.19.60"]
+nodelist = ["node2", "10.67.19.60"]
