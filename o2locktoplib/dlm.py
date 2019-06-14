@@ -171,6 +171,8 @@ class Lock():
     def __init__(self, node):
         self._node = node
         self._shots = [None, None]
+        # In the ocfs2 debug v4, if the lock is nit fresh, we shoule delete it
+        self._fresh = 1
         self.keep_history_cnt = KEEP_HISTORY_CNT
         self.refresh_flag = False
 
@@ -201,6 +203,20 @@ class Lock():
         if not hasattr(self, "_name"):
             return None
         return self._name.lock_type
+
+    def fresh_lock(self):
+        self._fresh = 1
+
+    def un_fresh_lock(self):
+        if self._fresh > 0:
+            self._fresh -= 1
+        else:
+            self._fresh = -1
+
+    def is_fresh_lock(self):
+        if self._fresh < 0:
+            return False
+        return True
 
     def get_lock_level_info(self, lock_level, unit='ns'):
         """
@@ -234,11 +250,16 @@ class Lock():
         return self._shots[0] != None and self._shots[1] != None
 
     def append(self, shot):
+        if shot == None:
+            self._shots[0] = None
+            self._shots[1] = None
+            return
         if not hasattr(self, "_name"):
             self._name = shot.name
         else:
             assert self._name == shot.name
 
+        self.fresh_lock()
         if not self._shots[0]:
             self._shots[0] = shot
             return
@@ -286,7 +307,7 @@ class Lock():
             key_index = self.get_lock_level_info(level, unit='ns')[-1]
             #*_, key_index= self.get_lock_level_info(level)
             avg_key_index += key_index
-        return avg_key_index//2
+        return avg_key_index/2
 
 
     def _get_data_field_indexed(self, data_field, index=-1):
@@ -391,7 +412,7 @@ class LockSet():
         for _node, _lock in self.node_to_lock_dict.items():
 
             ex_total_time, ex_total_num, ex_key_index = \
-                    _lock.get_lock_level_info(LOCK_LEVEL_EX, unit='us')
+                    _lock.get_lock_level_info(LOCK_LEVEL_EX, unit='ns')
 
             res_ex["total_time"] += ex_total_time
             res_ex["total_num"] += ex_total_num
@@ -399,7 +420,7 @@ class LockSet():
 
 
             pr_total_time, pr_total_num, pr_key_index = \
-                    _lock.get_lock_level_info(LOCK_LEVEL_PR, unit='us')
+                    _lock.get_lock_level_info(LOCK_LEVEL_PR, unit='ns')
 
             res_pr["total_time"] += pr_total_time
             res_pr["total_num"] += pr_total_num
@@ -451,7 +472,9 @@ class LockSet():
         for i in self._lock_list:
             key_index += i.get_key_index()
 
-        self.key_index = key_index//len(self._lock_list)
+        # self.key_index = key_index//len(self._lock_list)
+        # use the lock num in all node to sort
+        self.key_index = key_index
         return self.key_index
 
 class LockSetGroup():
@@ -539,8 +562,8 @@ class LockSetGroup():
             time_stamp = time_stamp.split('.')[0]
         top_n_lock_set = self.get_top_n_key_index(top_n, debug=self._debug)
         what = LockSetGroup.TITLE_FORMAT.format(
-            "TYPE INO  ", "EX NUM", "EX TIME(us)", "EX AVG(us)",
-            "PR NUM", "PR TIME(us)", "PR AVG(us)")
+            "TYPE INO  ", "EX NUM", "EX TIME(ns)", "EX AVG(ns)",
+            "PR NUM", "PR TIME(ns)", "PR AVG(ns)")
         lsg_report_simple = ""
         lsg_report_simple += time_stamp + " lock acquisitions: total {0}, EX {1}, PR {2}\n"
         lsg_report_simple += "lock resources: {3}\n\n"
@@ -639,6 +662,11 @@ class Node:
     def process_all_slot_worker(self, raw_slot_strs, run_once_finished_semaphore):
         for i in raw_slot_strs:
             self.process_one_shot(i)
+        for lock_name, lock_obj in self._locks.items():
+            lock_obj.un_fresh_lock()
+            if not lock_obj.is_fresh_lock():
+                    lock_obj.append(None)
+                #del self._locks[lock_name]
         run_once_finished_semaphore.release()
 
     def run_once_consumer(self, sort_finished_semaphore, run_once_finished_semaphore):
