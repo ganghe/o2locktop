@@ -1,3 +1,6 @@
+"""
+Unit test for printer.py
+"""
 import sys
 sys.path.append("../")
 import pytest
@@ -5,10 +8,9 @@ from o2locktoplib.printer import Printer
 from o2locktoplib.printer import SIMPLE_DISPLAY
 from o2locktoplib.printer import DETAILED_DISPLAY
 import config
-import os
 import check_env
 
-@pytest.fixture(params = ["test.log", None])
+@pytest.fixture(params=["test.log", None])
 def init_params(request):
     return request.param
 
@@ -19,17 +21,17 @@ def test_check_env_befor_test():
 class TestPrinter():
     def test_init(self, init_params):
         printer = Printer(init_params)
-        assert printer.content == None,\
+        assert not printer.content,\
         "Printer __init__ method test error"
         assert printer.display_mode == SIMPLE_DISPLAY,\
         "Printer __init__ method test error"
-        assert printer.should_stop == False,\
+        assert not printer.should_stop,\
         "Printer __init__ method test error"
         if init_params == None:
-            assert printer.log == None,\
+            assert not printer.log,\
             "Printer __init__ method test error"
         else:
-            assert printer.log != None,\
+            assert printer.log,\
             "Printer __init__ method test error"
 
     def test_active(self):

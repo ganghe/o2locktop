@@ -27,7 +27,7 @@ class Printer():
             print("unknow line in test case")
             print("unknow line in test case")
         if self.content:
-            if(config.clear):
+            if(config.CLEAR):
                 util.clear_screen()
             if self.prelude:
                 print(self.prelude)

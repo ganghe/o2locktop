@@ -70,8 +70,8 @@ class Shell(object):
     If set to ``True``, only non-empty lines from ``Shell.output`` or
     ``Shell.errors`` will be returned. (Default: ``True``)
     """
-    def __init__(self, has_input=False, record_output=True, record_errors=True, 
-              strip_empty=True):
+    def __init__(self, has_input=False, record_output=True, record_errors=True,
+                 strip_empty=True):
         self.has_input = has_input
         self.record_output = record_output
         self.record_errors = record_errors
@@ -317,10 +317,10 @@ def shell(command, has_input=False, record_output=True, record_errors=True,
     ['hello.py', 'world.py']
 
     """
-    sh = Shell(
+    shell_obj = Shell(
         has_input=has_input,
         record_output=record_output,
         record_errors=record_errors,
         strip_empty=strip_empty
     )
-    return sh.run(command)
+    return shell_obj.run(command)

@@ -1,22 +1,22 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
-# just a test
-# just a test too
+"""
+o2locktop is a top-like tool to monitor OCFS2 DLM lock usage in the cluster,
+and can be used to detect hot files/directories, which intensively acquire DLM
+locks.
+"""
 
 from __future__ import print_function
-import threading
 import sys
 import signal
 import argparse
 import multiprocessing
 import os
 import time
-import signal
 from tempfile import TemporaryFile
-import fcntl
 
-pid = os.getpid()
-attempt = 0
+PID = os.getpid()
+ATTEMPT = 0
 while True:
     try:
         from o2locktoplib import util
@@ -26,31 +26,38 @@ while True:
         from o2locktoplib import config
         from o2locktoplib.retry import retry
         break
-    except ImportError as e:
-        if attempt:
-            print("\no2locktop: error: can't find the o2locktoplib, installed error!\n", file=sys.stderr)
+    except ImportError:
+        if ATTEMPT:
+            print("\no2locktop: error: can't find the o2locktoplib, installed error!\n",
+                  file=sys.stderr)
             sys.exit(0)
         else:
-            attempt = 1
-        python_version = "{0}.{1}".format(str(sys.version_info[0]), str(sys.version_info[1]))
-        package_path_64 = "/usr/lib64/python{0}/site-packages".format(python_version)
-        package_path = "/usr/lib/python{0}/site-packages".format(python_version)
-        local_package_path_64 = "/usr/local/lib64/python{0}/site-packages".format(python_version)
-        local_package_path = "/usr/local/lib/python{0}/site-packages".format(python_version)
+            ATTEMPT = 1
+        PYTHON_VERSION = "{0}.{1}".format(str(sys.version_info[0]), str(sys.version_info[1]))
+        PACKAGE_PATH_64 = "/usr/lib64/python{0}/site-packages".format(PYTHON_VERSION)
+        PACKAGE_PATH = "/usr/lib/python{0}/site-packages".format(PYTHON_VERSION)
+        LOCAL_PACKAGE_PATH_64 = "/usr/local/lib64/python{0}/site-packages".format(PYTHON_VERSION)
+        LOCAL_PACKAGE_PATH = "/usr/local/lib/python{0}/site-packages".format(PYTHON_VERSION)
 
-        for pk_path in package_path_64, package_path, local_package_path_64, local_package_path:
+        for pk_path in PACKAGE_PATH_64, PACKAGE_PATH, LOCAL_PACKAGE_PATH_64, LOCAL_PACKAGE_PATH:
             if pk_path not in sys.path:
                 sys.path.append(pk_path)
-   
+
 
 def parse_args(args=None):
+    """ Parse the arguments of o2loctop
+    Parameters:
+        args(list): If args is None, the function will get the parameters form sys.argv[]
+    Returns:
+        (dict): The parse result in nameless dictionary
+    """
 
-    DESCRIPTION = """\
+    description = r"""
 It is a top-like tool to monitor OCFS2 DLM lock usage in the cluster, and can
 be used to detect hot files/directories, which intensively acquire DLM locks.
 """
 
-    NOTES = """\
+    notes = r"""
 The average/maximal wait time for DLM lock acquisitions likely gives hints to
 the administrator when concern about OCFS2 performance, for example,
 - if the workload is unbalanced among nodes.
@@ -100,9 +107,9 @@ EXAMPLES:
  
 """
 
-    parser = argparse.ArgumentParser(description=DESCRIPTION, 
-                                     prog='o2locktop', 
-                                     epilog=NOTES,
+    parser = argparse.ArgumentParser(description=description,
+                                     prog='o2locktop',
+                                     epilog=notes,
                                      formatter_class=argparse.RawDescriptionHelpFormatter
                                     )
 #                                     add_help=False)
@@ -119,10 +126,10 @@ EXAMPLES:
                         dest='display_len', type=int,
                         help='number of lock records to display')
 
-    parser.add_argument('-V','--version',action="store_true", 
+    parser.add_argument('-V', '--version', action="store_true",
                         help='the current version of o2locktop')
 
-    parser.add_argument('-d','--debug',action="store_true",
+    parser.add_argument('-d', '--debug', action="store_true",
                         help='show all the inode including the system inode number')
 
     parser.add_argument('mount_point', metavar='MOUNT_POINT', nargs='?',
@@ -130,16 +137,7 @@ EXAMPLES:
 
     args = parser.parse_args(args=args)
 
-    # FIXME: to delete ZERO argument detection after implementing the new feat to
-    # allow users run this tool without argument inside the ocfs2 cluster. 
-    '''
-    if len(sys.argv) < 2:
-        parser.print_usage()
-        sys.exit(1)
-    '''
-
     node_list = []
-    met_colon = False
     if args.version:
         print(config.VERSION)
         sys.exit(0)
@@ -154,166 +152,217 @@ EXAMPLES:
         for i in args.host_list:
             node_list.append(i)
 
-        return {
-                "mode":"remote",
+        return {"mode":"remote",
                 "mount_node" : node_list[0],
                 "mount_point" : args.mount_point,
                 "node_list" : node_list,
                 "log" : args.log,
                 "display_len" : args.display_len,
-                "debug" : args.debug
-                }
+                "debug" : args.debug}
     else:
         if not args.mount_point:
             util.eprint("\no2locktop: error: ocfs2 mount point is needed\n")
             parser.print_usage()
             sys.exit(0)
-        return {
-                "mode":"local",
+        return {"mode":"local",
                 "mount_point" : args.mount_point,
                 "log" : args.log,
                 "display_len" : args.display_len,
-                "debug" : args.debug
-                }
+                "debug" : args.debug}
 
     parser.print_help()
     sys.exit(0)
 
-def _connection_test_worker(node,mount_point,queue,pid):
+def _connection_test_worker(node, mount_point, queue, pid):
+    """ The worker of connection_test
+    Parameters:
+        node(str): The node name that to be tested
+        mount_point(str): mount_point in the node
+        queue(multiprocessing.Queue): To send message
+        pid: PID of the main process
+    """
     now = time.time()
     uuid = util.get_dlm_lockspace_mp(node, mount_point)
     if not uuid:
         if (time.time()-now) > 5:
             util.eprint("\no2locktop: error: network connection to {0} failed\n".format(node))
             try:
-                os.kill(pid,signal.SIGUSR1)
+                os.kill(pid, signal.SIGUSR1)
             except:
                 pass
-            return
         elif not util.is_passwdless_ssh_set(node):
-            util.eprint('\no2locktop: error: o2locktop uses the passwordless SSH to OCFS2 nodes as root. Set it up if not: \nssh-keygen; ssh-copy-id root@{node}\n'.format(node=node))
+            util.eprint("\no2locktop: error: o2locktop uses the passwordless SSH to OCFS2 nodes"\
+                        " as root. Set it up if not: \nssh-keygen; ssh-copy-id root@{node}\n"
+                        .format(node=node))
             try:
-                os.kill(pid,signal.SIGUSR1)
+                os.kill(pid, signal.SIGUSR1)
             except:
                 pass
-            return
         else:
-            util.eprint("\no2locktop: error: can't find the mount point: {0}, please cheack and retry\n".format(mount_point))
+            util.eprint("\no2locktop: error: can't find the mount point: {0}, "\
+                        "please cheack and retry\n"
+                        .format(mount_point))
             try:
-                os.kill(pid,signal.SIGUSR1)
+                os.kill(pid, signal.SIGUSR1)
             except:
                 pass
-            return
+        return
     queue.put(uuid)
 
 
-def connection_test(nodes,mount_point):
-    assert(nodes != None and len(nodes) > 0)
+def connection_test(nodes, mount_point):
+    """ Test the connection of all the nodes in the remote mode, and chech the uuid of the nodes
+    Parameters:
+        nodes(list): Node list of the cluster
+        mount_point(str): mount_point in the node
+    """
+    assert(nodes != None and nodes)
     queue = multiprocessing.Queue()
     process_list = []
     for node in nodes:
-        p = multiprocessing.Process(target = _connection_test_worker, args = (node,mount_point,queue,pid))
-        p.daemon = True
-        p.start()
-        process_list.append(p)
-    for p in process_list:
-        p.join()
+        process = multiprocessing.Process(target=_connection_test_worker,
+                                          args=(node, mount_point, queue, PID))
+        process.daemon = True
+        process.start()
+        process_list.append(process)
+    for process in process_list:
+        process.join()
     uuid = queue.get()
-    for i in range(len(process_list) - 1):
+    for _ in range(len(process_list) - 1):
         tmp = queue.get()
         if uuid != tmp:
             util.eprint("\no2locktop: error: can't find the shared storage in the cluster, "\
-                          "check if the node in the command line has input errors\n")
-            sys.exit(0) 
+                        "check if the node in the command line has input errors\n")
+            sys.exit(0)
 
 def _connection_ocfs2_debug_test_worker(node, pid):
-    if(False == util.is_kernel_ocfs2_fs_stats_enabled(node)):
-        util.eprint("\no2locktop: error: the node({0}) do not support ocfs2 debug, please cheack and retry\n".format(node))
-        os.kill(pid,signal.SIGUSR1)
+    """ The worker of connection_ocfs2_debug_test
+    Parameters:
+        node(str): The node name that to be tested
+        pid: PID of the main process
+    """
+    if not util.is_kernel_ocfs2_fs_stats_enabled(node):
+        util.eprint("\no2locktop: error: the node({0}) do not support ocfs2 debug, "\
+                    "please cheack and retry\n"
+                    .format(node))
+        os.kill(pid, signal.SIGUSR1)
         sys.exit(0)
 
-process_list = []
+PROCESS_LIST = []
 def connection_ocfs2_debug_test(nodes):
-    assert(nodes != None and len(nodes) > 0)
+    """ Check all the nodes that if the ovfs2 debug flag is set
+    Parameters:
+        nodes(list): The node list that to be tested
+    """
+    assert(nodes != None and len)
     # do must wait the children process finished
     for node in nodes:
-        p = multiprocessing.Process(target = _connection_ocfs2_debug_test_worker, args = (node,pid))
-        p.daemon = True
-        p.start()
-        process_list.append(p)
+        process = multiprocessing.Process(target=_connection_ocfs2_debug_test_worker,
+                                          args=(node, PID))
+        process.daemon = True
+        process.start()
+        PROCESS_LIST.append(process)
 
 def _remote_cmd_test_worker(node, pid, uuid):
+    """ The worker of remote_cmd_test
+    Parameters:
+        node(str): The node name that to be tested
+        pid: PID of the main process
+        uuid: The uuid of ocfs2 device
+    """
     result = util.cmd_is_exist(config.CMDS, node)
     if not result[0]:
-        util.eprint("\no2locktop: error: the node({0}) do not have the command {1}, please install and retry\n".format(node, result[1]))
-        os.kill(pid,signal.SIGUSR1)
+        util.eprint("\no2locktop: error: the node({0}) do not have the command {1}, "\
+                    "please install and retry\n"
+                    .format(node, result[1]))
+        os.kill(pid, signal.SIGUSR1)
         sys.exit(0)
     # to test if the remote node support ocfs2 debug v4, if support, set the v4 filter
     v4_support = util.check_support_debug_v4_and_get_interval(uuid, node)
-    if len(v4_support) != 0:
-        util.set_debug_v4_interval(uuid, node, config.interval*2+1)
+    if v4_support:
+        util.set_debug_v4_interval(uuid, node, config.INTERVAL*2+1)
 
 def remote_cmd_test(nodes, mount_point):
-    assert(nodes != None and len(nodes) > 0)
+    """ Test if all the required commands is in the node envirment
+    Parameters:
+        nodes(list): The node list that to be tested
+        mount_point(str): mount_point in the node
+    """
+    assert(nodes != None and nodes)
     uuid = util.get_dlm_lockspace_mp(nodes[0], mount_point)
     for node in nodes:
-        p = multiprocessing.Process(target = _remote_cmd_test_worker, args = (node,pid,uuid))
-        p.daemon = True
-        p.start()
-        process_list.append(p)
+        process = multiprocessing.Process(target=_remote_cmd_test_worker, args=(node, PID, uuid))
+        process.daemon = True
+        process.start()
+        PROCESS_LIST.append(process)
 
 
 def local_test(mount_point):
+    """ Test if the mount_point's device is an ocfs2 device
+    """
     uuid = util.get_dlm_lockspace_mp(None, mount_point)
     if not uuid:
-        util.eprint("\no2locktop: error: can't find the mount point: {0}, please cheack and retry\n".format(mount_point))
+        util.eprint("\no2locktop: error: can't find the mount point: {0}, "\
+                    "please cheack and retry\n"
+                    .format(mount_point))
         sys.exit(0)
 
 def local_ocfs2_debug_test():
-    if(False == util.is_kernel_ocfs2_fs_stats_enabled()):
-        util.eprint("\no2locktop: error: the node({0}) do not support ocfs2 debug, please cheack and retry\n".format("localhost"))
+    """ The  local version of remote_ocfs2_debug_test
+    """
+    if not util.is_kernel_ocfs2_fs_stats_enabled():
+        util.eprint("\no2locktop: error: the node({0}) do not support ocfs2 debug, "\
+                    "please cheack and retry\n"
+                    .format("localhost"))
         sys.exit(0)
 
 def local_cmd_test(mount_point):
+    """ The  local version of remote_cmd_test
+    """
     result = util.cmd_is_exist(config.CMDS)
     if not result[0]:
-        util.eprint("\no2locktop: error: the local node do not have the command {0}, please install and retry\n".format(result[1]))
+        util.eprint("\no2locktop: error: the local node do not have the command {0}, "\
+                    "please install and retry\n"
+                    .format(result[1]))
         sys.exit(0)
     # to test if the local node support ocfs2 debug v4, if support, set the v4 filter
     uuid = util.get_dlm_lockspace_mp(None, mount_point)
     v4_support = util.check_support_debug_v4_and_get_interval(uuid, None)
-    if len(v4_support) != 0:
-        util.set_debug_v4_interval(uuid, None, config.interval*2+1)
+    if v4_support:
+        util.set_debug_v4_interval(uuid, None, config.INTERVAL*2+1)
 
 def main():
+    """
+    The main function of o2locktop
+    """
     args = parse_args()
 
     # can also use dup2
-    if not config.debug:
+    if not config.DEBUG:
         tmp_stderr = TemporaryFile('w+t')
         sys.stderr = tmp_stderr
-    '''
-    else:
-        flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL)
-        flags &= ~os.O_NONBLOCK;
-        fcntl.fcntl(sys.stdout,fcntl.F_SETFL,flags);
-    '''
 
     @retry(10)
     def sigcont_handler(signum, frame):
+        """
+        SIGCONT handler, for the state of Ctrl+z
+        """
         keyboard.set_terminal()
+        # the pass is useful for test
         pass
 
     @retry(10)
     def sigusr1_handler(signum, frame):
+        """
+        SIGUSR1 handler
+        """
         keyboard.reset_terminal()
-        # util.eprint("\no2locktop: error: can't find the mount point: {0}, please cheack and retry\n".format(args["mount_point"]))
         os._exit(0)
 
     signal.signal(signal.SIGUSR1, sigusr1_handler)
 
     log = args["log"]
-    display_len = args["display_len"] 
+    display_len = args["display_len"]
     debug = args["debug"]
 
     if args['mode'] == "remote":
@@ -341,18 +390,21 @@ def main():
     if args["mode"] == "local":
         nodes = None
 
-    for p in process_list:
-        p.join()
+    for process in PROCESS_LIST:
+        process.join()
 
     printer_queue = multiprocessing.Queue()
     printer_process = multiprocessing.Process(target=printer.worker,
-                                        args=(printer_queue, log),
-                                        kwargs={"mount_info":mount_info}
-                                    )
+                                              args=(printer_queue, log),
+                                              kwargs={"mount_info":mount_info})
     printer_process.daemon = True
     lock_space_process = multiprocessing.Process(target=dlm.worker,
-                                        args=(lock_space_str, max_sys_inode_num, debug, display_len, nodes, printer_queue)
-                                        )
+                                                 args=(lock_space_str,
+                                                       max_sys_inode_num,
+                                                       debug,
+                                                       display_len,
+                                                       nodes,
+                                                       printer_queue))
 
     lock_space_process.daemon = True
     printer_process.start()

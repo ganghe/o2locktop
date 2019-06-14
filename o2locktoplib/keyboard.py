@@ -1,61 +1,78 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-import sys, os
-import termios, fcntl
+"""
+The o2locktop library
+
+It can set the terminal as o2locktop requird.
+"""
+import sys
+import os
+import termios
+import fcntl
 import select
-import signal
-import threading
 import time
 from o2locktoplib.retry import retry
 from o2locktoplib import config
 from o2locktoplib import util
 
-oldterm = None
-oldflags = None
-fd = sys.stdin.fileno()
+OLDTERM = None
+OLDFLAG = None
 
 def set_terminal():
-    global oldterm,oldflags
-    oldterm = termios.tcgetattr(fd)
-    oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
+    """
+    Set the terminal hid the input
+    """
+    global OLDTERM, OLDFLAG
+    file_dec = sys.stdin.fileno()
+    OLDTERM = termios.tcgetattr(file_dec)
+    OLDFLAG = fcntl.fcntl(file_dec, fcntl.F_GETFL)
 
-    newattr = termios.tcgetattr(fd)
+    newattr = termios.tcgetattr(file_dec)
     newattr[3] = newattr[3] & ~termios.ICANON
     newattr[3] = newattr[3] & ~termios.ECHO
-    termios.tcsetattr(fd, termios.TCSANOW, newattr)
+    termios.tcsetattr(file_dec, termios.TCSANOW, newattr)
 
-    fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
+    fcntl.fcntl(file_dec, fcntl.F_SETFL, OLDFLAG | os.O_NONBLOCK)
     if util.cmd_is_exist("setterm")[0]:
         os.system('setterm -cursor off')
 
 class Keyboard():
+    """
+    The main class of this file
+    """
     def __init__(self):
         pass
 
-    @retry(10,delay=False)
-    def _getchar(self):    
-        inp, outp, err = select.select([sys.stdin], [], [])
-        c = sys.stdin.read()
-        return c
+    @retry(10, delay=False)
+    def _getchar(self):
+        """
+        Get the input character from input by select
+        """
+        _, _, _ = select.select([sys.stdin], [], [])
+        character = sys.stdin.read()
+        return character
 
     def run(self, printer_queue):
+        """
+        The main method that will run in o2locktop and wait for the user's input
+        """
         set_terminal()
         while True:
             try:
-                c = self._getchar()
-            except Exception as e:
+                character = self._getchar()
+            except Exception as expt:
                 printer_queue.put({'msg_type':'quit',
-                                    'what':'1'})
-                print(e)
+                                   'what':'1'})
+                print(expt)
                 break
 
-            if c == 'q':
+            if character == 'q':
                 printer_queue.put({'msg_type':'quit',
-                                    'what':'1'})
+                                   'what':'1'})
                 break
 
-            if c == 'd':
+            if character == 'd':
                 rows, cols = os.popen('stty size', 'r').read().split()
                 if int(cols) < config.COLUMNS:
                     rows = (int(rows)//2 - 4)
@@ -65,26 +82,33 @@ class Keyboard():
                                    'what':'detial',
                                    'rows':rows})
 
-            if c == '2':
+            if character == '2':
                 printer_queue.put({'msg_type':'kb_hit',
-                                    'what':'debug'})
+                                   'what':'debug'})
             time.sleep(0.1)
 
         # Reset the terminal:
         reset_terminal()
 
 def reset_terminal():
-    if oldterm:
-        termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
-    if oldflags:
-        fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
+    """
+    This function will recover the terminal
+    """
+    file_dec = sys.stdin.fileno()
+    if OLDTERM:
+        termios.tcsetattr(file_dec, termios.TCSAFLUSH, OLDTERM)
+    if OLDFLAG:
+        fcntl.fcntl(file_dec, fcntl.F_SETFL, OLDFLAG)
     if util.cmd_is_exist("setterm")[0]:
         os.system('setterm -cursor on')
-    
+
 
 def worker(printer_queue):
-    kb = Keyboard()
-    kb.run(printer_queue)
+    """
+    The method that will be called in o2locktop
+    """
+    keyboard = Keyboard()
+    keyboard.run(printer_queue)
 
 
 if __name__ == '__main__':
