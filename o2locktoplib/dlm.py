@@ -533,6 +533,17 @@ class LockSetGroup():
         else:
             self.lock_set_list.append(lock_set)
 
+    def filter_zero(self, index_list):
+        ret_list = []
+        if not index_list:
+            return index_list
+        if index_list[-1].key_index > 0:
+            return index_list
+        for i in index_list:
+            if i.key_index != 0:
+                ret_list.append(i)
+        return ret_list
+
     def get_top_n_key_index(self, top_n, debug=False):
         if not top_n:
             rows, cols = os.popen('stty size', 'r').read().split()
@@ -545,15 +556,15 @@ class LockSetGroup():
             self.lock_set_list.sort(key=lambda x: x.key_index, reverse=True)
         if debug:
             if len(self.lock_set_list) > top_n:
-                return self.lock_set_list[:top_n]
-            return self.lock_set_list
+                return self.filter_zero(self.lock_set_list[:top_n])
+            return self.filter_zero(self.lock_set_list)
         ret = []
         for i in self.lock_set_list:
             if int(i.inode_num) > self._max_sys_inode_num:
                 ret.append(i)
                 if len(ret) == top_n:
-                    return ret
-        return ret
+                    return self.filter_zero(ret)
+        return self.filter_zero(ret)
 
     def report_once(self, top_n):
         self.sort_flag = False
