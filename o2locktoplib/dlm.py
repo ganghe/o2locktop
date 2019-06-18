@@ -408,7 +408,7 @@ class LockSet():
         body = ""
 
         node_to_lock_dict_len = len(self.node_to_lock_dict)
-        temp_index = 0
+        #temp_index = 0
         for _node, _lock in self.node_to_lock_dict.items():
 
             ex_total_time, ex_total_num, ex_key_index = \
@@ -425,28 +425,33 @@ class LockSet():
             res_pr["total_time"] += pr_total_time
             res_pr["total_num"] += pr_total_num
             config.pr_locks += pr_total_num
+            node_name = util.get_hostname() if not _node.name else _node.name
 
             if util.PY2:
                 node_detail_format = "{0:25}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
             else:
                 node_detail_format = "{0:21}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
-            temp_index += 1
-            node_name = util.get_hostname() if not _node.name else _node.name
-            if temp_index < node_to_lock_dict_len:
+            #temp_index += 1
+            node_detail_str = ""
+            if ex_total_num != 0 or pr_total_num != 0:
                 node_detail_str = node_detail_format.format(
                     "├─"+node_name,
                     ex_total_num, ex_total_time, ex_key_index,
                     pr_total_num, pr_total_time, pr_key_index)
-            else:
+                '''
                 node_detail_str = node_detail_format.format(
                     "└─"+node_name,
                     ex_total_num, ex_total_time, ex_key_index,
                     pr_total_num, pr_total_time, pr_key_index)
+                '''
 
-            if body == "":
-                body = node_detail_str
-            else:
-                body = "\n".join([body, node_detail_str])
+            tmp_index = node_detail_str.rfind("├─")
+            if node_detail_str != "":
+                node_detail_str = node_detail_str[:tmp_index] + "└─" + node_detail_str[tmp_index+6:]
+                if body == "":
+                    body = node_detail_str
+                else:
+                    body = "\n".join([body, node_detail_str])
 
         if res_ex["total_num"] != 0:
             res_ex["key_index"] = res_ex["total_time"]//res_ex["total_num"]
