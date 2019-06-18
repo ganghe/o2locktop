@@ -141,7 +141,7 @@ EXAMPLES:
     if args.version:
         print(config.VERSION)
         sys.exit(0)
-    if args.display_len != None and args.display_len <= 0:
+    if args.display_len is not None and args.display_len <= 0:
         util.eprint("\no2locktop: error: The length of the line to show must be greater than 0\n")
         sys.exit(0)
     if args.host_list:
@@ -216,7 +216,7 @@ def connection_test(nodes, mount_point):
         nodes(list): Node list of the cluster
         mount_point(str): mount_point in the node
     """
-    assert(nodes != None and nodes)
+    assert(nodes is not None and nodes)
     queue = multiprocessing.Queue()
     process_list = []
     for node in nodes:
@@ -254,7 +254,7 @@ def connection_ocfs2_debug_test(nodes):
     Parameters:
         nodes(list): The node list that to be tested
     """
-    assert(nodes != None and len)
+    assert(nodes is not None and len)
     # do must wait the children process finished
     for node in nodes:
         process = multiprocessing.Process(target=_connection_ocfs2_debug_test_worker,
@@ -288,7 +288,7 @@ def remote_cmd_test(nodes, mount_point):
         nodes(list): The node list that to be tested
         mount_point(str): mount_point in the node
     """
-    assert(nodes != None and nodes)
+    assert(nodes is not None and nodes)
     uuid = util.get_dlm_lockspace_mp(nodes[0], mount_point)
     for node in nodes:
         process = multiprocessing.Process(target=_remote_cmd_test_worker, args=(node, PID, uuid))
