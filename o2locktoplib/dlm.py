@@ -182,38 +182,63 @@ class Lock():
 
     @property
     def name(self):
+        """
+        Return the name of the lock, It is same as the slot name in the lock
+        """
         return getattr(self, "_name", None)
 
     @property
     def node(self):
+        """
+        Return the node that this lock belong to
+        """
         return self._node
 
     @property
     def lock_space(self):
+        """
+        Return the lockspace that this lock belong to
+        """
         return self._node.lock_space
 
     @property
     def inode_num(self):
+        """
+        Return the inode number of the lock
+        """
         if not hasattr(self, "_name"):
             return None
         return self._name.inode_num
 
     @property
     def lock_type(self):
+        """
+        Return the lock type of this lock
+        """
         if not hasattr(self, "_name"):
             return None
         return self._name.lock_type
 
     def fresh_lock(self):
+        """
+        If there is a new shot add to the lock,
+        then use this function tofresh the lock
+        """
         self._fresh = 1
 
     def un_fresh_lock(self):
+        """
+        Every time get raw string from nodes, unfresh the lock
+        """
         if self._fresh > 0:
             self._fresh -= 1
         else:
             self._fresh = -1
 
     def is_fresh_lock(self):
+        """
+        To judge if the lock is fresh acorrding to self._fresh
+        """
         if self._fresh < 0:
             return False
         return True
@@ -247,9 +272,15 @@ class Lock():
         return 0, 0, 0
 
     def has_delta(self):
+        """
+        If one of the slot in self._slots is None, then return False
+        """
         return self._shots[0] != None and self._shots[1] != None
 
     def append(self, shot):
+        """
+        Append a shot to the lock, if the para is None, it plant to set the lock invalid
+        """
         if shot == None:
             self._shots[0] = None
             self._shots[1] = None
@@ -287,6 +318,9 @@ class Lock():
             print(num_line)
 
     def get_line(self, data_field, delta=False):
+        """
+        Get the the two latest shot according to para data_field
+        """
         data_list = [int(getattr(i, data_field)) for i in self._shots]
         if not delta:
             return data_list
@@ -299,6 +333,9 @@ class Lock():
         return None
 
     def get_key_index(self):
+        """
+        We will accoring the return of this function to sort all the lock
+        """
         if not self.has_delta():
             return 0
         avg_key_index = 0
@@ -311,6 +348,9 @@ class Lock():
 
 
     def _get_data_field_indexed(self, data_field, index=-1):
+        """
+        Get the shot info according to para data_field and index
+        """
         try:
             ret = getattr(self._shots[index], data_field)
             if ret != None:
@@ -320,6 +360,9 @@ class Lock():
             return None
 
     def _get_latest_data_field_delta(self, data_field):
+        """
+        Get the subtraction of the two latest shot according to para data_field
+        """
         if not self.has_delta():
             if self._shots[0] != None:
                 return self._shots[0]
@@ -339,6 +382,9 @@ class Lock():
         return 0
 
     def _lock_level_2_field(self, lock_level):
+        """
+        According the lock_level return two relative strings
+        """
         if lock_level == LOCK_LEVEL_PR:
             total_time_field = "lock_total_prmode"
             total_num_field = "lock_num_prmode"
@@ -350,7 +396,9 @@ class Lock():
         return total_time_field, total_num_field
 
 class LockSet():
-    # locks which has the same name but on different node
+    """
+    locks which has the same name but on different node
+    """
     def __init__(self, lock_list=None):
         self.key_index = 0
         self.node_to_lock_dict = {}
@@ -374,6 +422,9 @@ class LockSet():
 
     @property
     def name(self):
+        """
+        Return the name that same as all the Lock of the lockset
+        """
         if hasattr(self, "_name"):
             return self._name
         return None
@@ -391,6 +442,9 @@ class LockSet():
     '''
 
     def append(self, lock):
+        """
+        Add the lock that has same name but on the diff node to the set
+        """
         if self._name is None:
             self._name = lock.name
 
@@ -400,6 +454,9 @@ class LockSet():
         self.node_to_lock_dict[lock.node] = lock
 
     def report_once(self):
+        """
+        According to self.node_to_lock_dict splice the simple and detailed string
+        """
         if not self.node_to_lock_dict:
             return None
 
@@ -470,6 +527,9 @@ class LockSet():
         return {'simple':title, "detailed":lock_set_summary}
 
     def get_key_index(self):
+        """
+        We use the return of the fuction to sort in o2locktop
+        """
         if not self._lock_list:
             return 0
 
@@ -483,6 +543,9 @@ class LockSet():
         return self.key_index
 
 class LockSetGroup():
+    """
+    The group of LockSet, It contains all the infomation that get form all the nodes
+    """
     TITLE_FORMAT = "{0:21}{1:12}{2:12}{3:12}{4:12}{5:12}{6:12}"
     DATA_FORMAT = "{0:21}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
 
@@ -495,6 +558,11 @@ class LockSetGroup():
         self._max_length = max_length
 
     def append(self, lock_set):
+        """
+        Append lockset to this group, If the length of self.lock_set_list is more than self._max_length,
+        We use a elimination algorithm to eliminate the smallest lock_set in self.lock_set_list,
+        and keep the length of self.lock_set_list always self._max_length
+        """
         lock_set.get_key_index()
         if len(self.lock_set_list) >= self._max_length:
             new_key_index = lock_set.key_index
@@ -539,6 +607,10 @@ class LockSetGroup():
             self.lock_set_list.append(lock_set)
 
     def filter_zero(self, index_list):
+        """
+        Filter the zero line in index_list
+        We use it befor display
+        """
         ret_list = []
         if not index_list:
             return index_list
@@ -550,6 +622,10 @@ class LockSetGroup():
         return ret_list
 
     def get_top_n_key_index(self, top_n, debug=False):
+        """
+        According LockSet method get_key_index to sort the group,
+        and return the top n lock set
+        """
         if not top_n:
             rows, cols = os.popen('stty size', 'r').read().split()
             if int(cols) < config.COLUMNS:
@@ -572,6 +648,9 @@ class LockSetGroup():
         return self.filter_zero(ret)
 
     def report_once(self, top_n):
+        """
+        Accordng the para top_n, splice the "simple" and "detailed" format string
+        """
         self.sort_flag = False
         time_stamp = str(util.now())
         if '.' in time_stamp:
@@ -646,6 +725,11 @@ class Node:
         return self._lock_space
 
     def process_one_shot(self, raw_string):
+        """
+        Trun the raw_string to a Shot object
+        parameters:
+            raw_string: is a line form file locking_state
+        """
         shot = Shot(raw_string)
         if not shot.legal():
             return
@@ -676,6 +760,9 @@ class Node:
             self._locks[key].refresh_flag = False
 
     def process_all_slot_worker(self, raw_slot_strs, run_once_finished_semaphore):
+        """
+        The worker that process the file locking state, the method will be use as a thread method
+        """
         for i in raw_slot_strs:
             self.process_one_shot(i)
         for lock_name, lock_obj in self._locks.items():
@@ -686,6 +773,10 @@ class Node:
         run_once_finished_semaphore.release()
 
     def run_once_consumer(self, sort_finished_semaphore, run_once_finished_semaphore):
+        """
+        The concumer of the productor-consumer module, it get the raw_date form productor
+        and use a thread to process the raw string.
+        """
         while True:
             # the next line must before semaphore,
             (raw_slot_strs, sleep_time) = yield ''
@@ -704,6 +795,10 @@ class Node:
 
 
     def run_once(self, consumer):
+        """
+        The productor of the productor and consumer module, it get the raw string by _cat,
+        and sent the raw string to consumer
+        """
         if util.PY2:
             consumer.next()
         else:
@@ -721,6 +816,7 @@ class Node:
             if self._lock_space.first_run:
                 consumer.send((raw_slot_strs, 1-cat_time-cat_time))
             else:
+                #consumer.send((raw_slot_strs, config.INTERVAL-cat_time-cat_time))
                 consumer.send((raw_slot_strs, config.INTERVAL-cat_time-cat_time))
         consumer.close()
 
@@ -735,7 +831,9 @@ class Node:
         return self._locks.keys()
 
 class LockSpace:
-    "One lock space on multiple node"
+    """
+    One lock space on multiple node
+    """
     def __init__(self, node_name_list, lock_space, max_sys_inode_num, debug, display_len=10):
         #pdb.set_trace()
         self._mutex = threading.Lock()
@@ -758,9 +856,15 @@ class LockSpace:
 
 
     def stop(self):
+        """
+        Using this function can stop this process
+        """
         self.should_stop = True
 
     def run(self, printer_queue, interval=5, ):
+        """
+        The main code of o2locktop
+        """
         self._lock_names = []
         self._thread_list = []
         self.run_once_finished_semaphore = []
@@ -831,6 +935,11 @@ class LockSpace:
         return lock_on_cluster
 
     def lock_name_to_lock_set(self, lock_name):
+        """
+        According the lock_name generate a LockSet object,
+        collect the lock with para lock_name on different nodes,
+        and push them in a LockSet object. 
+        """
         lock_set = LockSet()
         for node in self.node_list:
             lock = node[lock_name]
@@ -839,13 +948,24 @@ class LockSpace:
         return lock_set
 
     def add_lock_name(self, lock_name):
+        """
+        self._lock_names contains all the lock name on the lockspace(all the node),
+        This function update self._lock_names
+        """
         with self._mutex:
             self._lock_names.append(lock_name)
 
     def reduce_lock_name(self):
+        """
+        Delete duplicate locks in self._lock_names
+        """
         self._lock_names = list(set(self._lock_names))
 
     def add_lock_type(self, lock_name):
+        """
+        self._lock_types contains all the lock types and the number of each type on the lockspace(all the node),
+        This function update self._lock_types
+        """
         with self._mutex:
             if lock_name.lock_type in self._lock_types.keys():
                 self._lock_types[lock_name.lock_type] += 1
