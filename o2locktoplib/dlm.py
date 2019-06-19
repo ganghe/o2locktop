@@ -740,8 +740,10 @@ class Node:
             self._locks[shot_name] = lock_tmp
         else:
             self._locks[shot_name].append(shot)
+            if self._locks[shot_name].get_key_index() > 0:
+                self._lock_space.add_lock_type(shot_name)
         self._lock_space.add_lock_name(shot_name)
-        self._lock_space.add_lock_type(shot_name)
+        # self._lock_space.add_lock_type(shot_name)
 
     def del_unfreshed_node(self):
         for key in self._locks.keys():
