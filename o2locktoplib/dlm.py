@@ -9,6 +9,7 @@ classify and statistics the locks of the cluster
 import threading
 import time
 import os
+import decimal
 from o2locktoplib import util
 from o2locktoplib import config
 from o2locktoplib import cat
@@ -141,6 +142,16 @@ class Shot:
             setattr(self, var_name, value)
             i += var_len
         self.name = LockName(self.name)
+        self.check_hang()
+
+    def check_hang(self):
+        """
+        According current timestamp to judge if the lock is hanged
+        If hanged, set the lock_total_prmode and lock_total_exmode to inf
+        """
+        if int(time.time()) - int(self.lock_wait)/1000000 > config.INTERVAL:
+            self.lock_total_prmode = float('inf')
+            self.lock_total_exmode = float('inf')
 
     def __str__(self):
         """
@@ -377,7 +388,7 @@ class Lock():
             return 0
         latter = self._get_data_field_indexed(data_field, -1)
         former = self._get_data_field_indexed(data_field, -2)
-        return int(latter) - int(former)
+        return float(latter) - float(former)
 
     def _get_latest_data_field_delta_abs(self, data_field):
         '''
@@ -478,6 +489,9 @@ class LockSet():
 
             ex_total_time, ex_total_num, ex_key_index = \
                     _lock.get_lock_level_info(LOCK_LEVEL_EX, unit='ns')
+            ex_total_time_str = str(decimal.Decimal(ex_total_time).quantize(decimal.Decimal('0.'))).replace('NaN', '-')
+            ex_total_num_str = str(decimal.Decimal(ex_total_num).quantize(decimal.Decimal('0.'))).replace('NaN', '-')
+            ex_key_index_str = str(decimal.Decimal(ex_key_index).quantize(decimal.Decimal('0.'))).replace('NaN', '-')
 
             res_ex["total_time"] += ex_total_time
             res_ex["total_num"] += ex_total_num
@@ -486,6 +500,9 @@ class LockSet():
 
             pr_total_time, pr_total_num, pr_key_index = \
                     _lock.get_lock_level_info(LOCK_LEVEL_PR, unit='ns')
+            pr_total_time_str = str(decimal.Decimal(pr_total_time).quantize(decimal.Decimal('0.'))).replace('NaN', '-')
+            pr_total_num_str = str(decimal.Decimal(pr_total_num).quantize(decimal.Decimal('0.'))).replace('NaN', '-')
+            pr_key_index_str = str(decimal.Decimal(pr_key_index).quantize(decimal.Decimal('0.'))).replace('NaN', '-')
 
             res_pr["total_time"] += pr_total_time
             res_pr["total_num"] += pr_total_num
@@ -501,8 +518,8 @@ class LockSet():
             if ex_total_num != 0 or pr_total_num != 0:
                 node_detail_str = node_detail_format.format(
                     "├─"+node_name,
-                    ex_total_num, ex_total_time, ex_key_index,
-                    pr_total_num, pr_total_time, pr_key_index)
+                    ex_total_num_str, ex_total_time_str, ex_key_index_str,
+                    pr_total_num_str, pr_total_time_str, pr_key_index_str)
                 '''
                 node_detail_str = node_detail_format.format(
                     "└─"+node_name,
@@ -526,10 +543,16 @@ class LockSet():
 
 
         title_format = LockSetGroup.DATA_FORMAT
+        ex_total_num_str = str(decimal.Decimal(res_ex["total_num"]).quantize(decimal.Decimal('0.'))).replace('NaN', '-')
+        ex_total_time_str = str(decimal.Decimal(res_ex["total_time"]).quantize(decimal.Decimal('0.'))).replace('NaN', '-')
+        ex_key_index_str = str(decimal.Decimal(res_ex["key_index"]).quantize(decimal.Decimal('0.'))).replace('NaN', '-')
+        pr_total_num_str = str(decimal.Decimal(res_pr["total_num"]).quantize(decimal.Decimal('0.'))).replace('NaN', '-')
+        pr_total_time_str = str(decimal.Decimal(res_pr["total_time"]).quantize(decimal.Decimal('0.'))).replace('NaN', '-')
+        pr_key_index_str = str(decimal.Decimal(res_pr["key_index"]).quantize(decimal.Decimal('0.'))).replace('NaN', '-')
         title = title_format.format(
             self.name.short_name,
-            res_ex["total_num"], res_ex["total_time"], res_ex["key_index"],
-            res_pr["total_num"], res_pr["total_time"], res_pr["key_index"])
+            ex_total_num_str, ex_total_time_str, ex_key_index_str,
+            pr_total_num_str, pr_total_time_str, pr_key_index_str)
         lock_set_summary = '\n'.join([title, body])
 
         return {'simple':title, "detailed":lock_set_summary}
