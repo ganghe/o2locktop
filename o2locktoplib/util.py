@@ -24,7 +24,7 @@ def check_support_debug_v4_and_get_interval(lockspace, ip_addr):
         lockspace(str): the ocfs2 file system uuid
         ip_addr(str): The node's ip that to be tested
     """
-    prefix = "ssh root@{0} ".format(ip_addr)
+    prefix = "ssh root@{0} ".format(ip_addr) if ip_addr else ''
     cmd = "cat /sys/kernel/debug/ocfs2/{lockspace}/locking_filter".format(
         lockspace=lockspace)
     shell_obj = shell.shell(prefix + cmd)
@@ -38,10 +38,15 @@ def set_debug_v4_interval(lockspace, ip_addr, interval=0):
         ip_addr(str): The node's ip that to be tested
         interval(int): The ocfs2 filter interval(will be wrote to locking_filter)
     """
-    prefix = "ssh root@{0} ".format(ip_addr)
-    cmd = r"echo {interval} \> /sys/kernel/debug/ocfs2/{lockspace}/locking_filter".format(
-        lockspace=lockspace,
-        interval=interval)
+    prefix = "ssh root@{0} ".format(ip_addr) if ip_addr else ''
+    if ip_addr:
+        cmd = r"echo {interval} \> /sys/kernel/debug/ocfs2/{lockspace}/locking_filter".format(
+            lockspace=lockspace,
+            interval=interval)
+    else:
+        cmd = r"echo {interval} > /sys/kernel/debug/ocfs2/{lockspace}/locking_filter".format(
+            lockspace=lockspace,
+            interval=interval)
     shell_obj = shell.shell(prefix + cmd)
     shell_obj.output()
 
@@ -51,7 +56,7 @@ def is_passwdless_ssh_set(ip_addr, user="root"):
         ip_addr(str): The node's ip that to be tested
         user(str): The username for the remote node
     """
-    prefix = "ssh -oBatchMode=yes {user}@{ip_addr} ".format(user=user, ip_addr=ip_addr)
+    prefix = "ssh -oBatchMode=yes {user}@{ip_addr} ".format(user=user, ip_addr=ip_addr) if ip_addr else ''
     shell_obj = shell.shell(prefix + "uname")
     ret = shell_obj.output()
     return len(ret) != 0
@@ -60,7 +65,7 @@ def get_remote_path(ip_addr):
     """
     Get the remote node's environmet variable PATH
     """
-    prefix = "ssh root@{0} ".format(ip_addr)
+    prefix = "ssh root@{0} ".format(ip_addr) if ip_addr else ''
     cmd = "echo '$PATH'"
     shell_obj = shell.shell(prefix + cmd)
     ret = shell_obj.output()
@@ -71,7 +76,7 @@ def get_remote_cmd_list(ip_addr):
     Split the remote node's environmet variable PATH to list array
     """
     path = get_remote_path(ip_addr)
-    prefix = "ssh root@{0} ".format(ip_addr)
+    prefix = "ssh root@{0} ".format(ip_addr) if ip_addr else ''
     ret = []
     #cmd = 'for i in `echo $PATH|sed "s/:/ /g"`; do ls $i | grep -v "^d"; done'
     if not path:
