@@ -115,17 +115,25 @@ class Shot:
         ("lock_num_exmode_failed", 1),
         ("lock_total_prmode", 1), #unit ns
         ("lock_total_exmode", 1), #unit ns
+        ("lock_max_prmode", 1), #unit ns
         ("lock_max_exmode", 1), #unit ns
         ("lock_refresh", 1),
+    )
+
+    debug_format_v4 = debug_format_v3 + (
+        ("lock_last_prmode", 1),
+        ("lock_last_exmode", 1),
+        ("lock_wait", 1),
     )
 
     def __init__(self, source_str):
         self.source = source_str.strip()
         strings = source_str.strip().split()
-        debug_ver = int(strings[0].lstrip("0x"))
-        assert(debug_ver == 3 or debug_ver == 4)
+        self.debug_ver = int(strings[0].lstrip("0x"))
+        assert(self.debug_ver == 3 or self.debug_ver == 4)
+        self.debug_format = Shot.debug_format_v3 if self.debug_ver == 3 else Shot.debug_format_v4
         i = 0
-        for item in Shot.debug_format_v3:
+        for item in self.debug_format:
             # key, value = item[0], item[1]
             var_name = item[0]
             var_len = item[1]
@@ -139,7 +147,7 @@ class Shot:
         Put the shot by a friendly format
         """
         ret = []
-        keys = [i[0] for i in Shot.debug_format_v3]
+        keys = [i[0] for i in self.debug_format]
         for k in keys:
             value = getattr(self, k)
             ret.append("{0} : {1}".format(k, value))
