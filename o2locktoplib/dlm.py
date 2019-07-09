@@ -605,7 +605,10 @@ class LockSet():
             self.name.short_name,
             ex_total_num_str, ex_total_time_str, ex_key_index_str,
             pr_total_num_str, pr_total_time_str, pr_key_index_str)
-        lock_set_summary = '\n'.join([title, body])
+        if body != "":
+            lock_set_summary = '\n'.join([title, body])
+        else:
+            lock_set_summary = title
 
         return {'simple':title, "detailed":lock_set_summary}
 
