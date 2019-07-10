@@ -506,9 +506,9 @@ class LockSet():
         a hang in the lock, then chang the inf to the inf_str string.
         """
         if math.isinf(total_time):
-            total_time_str = str(decimal.Decimal(key_index).quantize(decimal.Decimal('0.')))+inf_str
+            total_time_str = str(decimal.Decimal(key_index).quantize(decimal.Decimal('0.')))+'s'+inf_str
             total_num_str = str(decimal.Decimal(total_num).quantize(decimal.Decimal('0.')))
-            key_index_str = inf_str
+            key_index_str = '--'
         else:
             total_time_str = str(decimal.Decimal(total_time).quantize(decimal.Decimal('0.')))
             total_num_str = str(decimal.Decimal(total_num).quantize(decimal.Decimal('0.')))
