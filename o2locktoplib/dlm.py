@@ -143,7 +143,9 @@ class Shot:
             setattr(self, var_name, value)
             i += var_len
         self.name = LockName(self.name)
-        self.check_hang()
+        self.debug_ver = int(strings[0].lstrip("0x"))
+        if self.debug_ver == 4:
+            self.check_hang()
 
     def check_hang(self):
         """

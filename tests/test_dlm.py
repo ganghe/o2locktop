@@ -66,7 +66,7 @@ def test_class_shot():
     assert shot.lock_type == "N", "Shot lock_type test failed"
 
 
-    assert shot.debug_ver == '0x4'
+    assert shot.debug_ver == 4
     assert shot.name == dlm.LockName("N00000000000000050000c602")
     assert shot.l_level == '3'
     assert shot.l_flags == '0x41'
@@ -88,7 +88,7 @@ def test_class_shot():
     assert shot.lock_num_exmode_failed == '0'
     assert shot.lock_total_prmode == '21937'
     assert shot.lock_total_exmode == '0'
-    assert shot.lock_max_exmode == '21'
+    assert shot.lock_max_exmode == '0'
     assert shot.lock_refresh == '0'
 
 # In this test, I insert two diff kind of lock in Lock object
@@ -187,8 +187,8 @@ def test_class_lock_2():
     assert shot.lock_num_exmode_failed == '0'
     assert shot.lock_total_prmode == '21278'
     assert shot.lock_total_exmode == '15984'
-    assert shot.lock_max_exmode == '36'
-    assert shot.lock_refresh == '15'
+    assert shot.lock_max_exmode == '15'
+    assert shot.lock_refresh == '1'
     total_time_field, total_num_field = lock._lock_level_2_field(dlm.LOCK_LEVEL_EX)
     assert total_time_field == 'lock_total_exmode'
     assert total_num_field == 'lock_num_exmode'
@@ -329,10 +329,10 @@ class TestLockSet:
         Test the report_once method of LockSet
         """
         ret = complete_lockset.report_once()
-        assert ret['simple'].replace(' ', '') == 'M5000000'
+        assert ret['simple'].replace(' ', '') == 'M54020151102011'
         "LockSet report_once function test error"
         assert ret['detailed'].replace(' ', '').replace('\n', '') == \
-        'M5000000├─{node1}000000└─{node2}000000'.\
+        'M54020151102011├─node22010051010010└─7.19.602010151001011'.\
         format(node1=config.nodelist[0], node2=config.nodelist[1]), \
         "LockSet report_once function test error"
 
@@ -340,7 +340,7 @@ class TestLockSet:
         """
         Test the get_key_index method of LockSet
         """
-        assert complete_lockset.get_key_index() == 5, \
+        assert complete_lockset.get_key_index() == 10.5, \
         "LockSet get_key_index function test error"
 
     # TODO fix me
@@ -449,11 +449,11 @@ class TestLockSetGroup():
         lsg.append(complete_lockset)
         ret = lsg.report_once(1)
         assert ret['simple'].strip().replace(' ', '').replace('\n', '')[18:] == \
-        "lockacquisitions:total0,EX0,PR0lockresources:"\
-        "total0TYPEINOEXNUMEXTIME(us)EXAVG(us)PRNUMPRTIME(us)PRAVG(us)M5000000"
+        "lockacquisitions:total300.0,EX80.0,PR220.0lockresources:"\
+        "total0TYPEINOEXNUMEXTIME(ns)EXAVG(ns)PRNUMPRTIME(ns)PRAVG(ns)M54020151102011"
         #assert ret['detailed'].strip().replace(' ', '').replace('\n', '')[18:] == \
-        assert "lockacquisitions:total0,EX0,PR0lockresources:"\
-        "total0TYPEINOEXNUMEXTIME(us)EXAVG(us)PRNUMPRTIME(us)PRAVG(us)M5000000├─" in \
+        assert "lockacquisitions:total300.0,EX80.0,PR220.0lockresources:"\
+        "total0TYPEINOEXNUMEXTIME(ns)EXAVG(ns)PRNUMPRTIME(ns)PRAVG(ns)M54020151102011" in\
         ret['detailed'].strip().replace(' ', '').replace('\n', '')[18:]
 
 
@@ -526,14 +526,14 @@ class TestNode():
         "Node process_one_shot method test error"
         assert len(node["node"]._lock_space._lock_names) == 1,\
         "Node process_one_shot method test error"
-        assert len(node["node"]._lock_space._lock_types) == 1,\
+        assert len(node["node"]._lock_space._lock_types) == 0,\
         "Node process_one_shot method test error"
         node["node"].process_one_shot(data[0])
         assert len(node["node"]._locks) == 1,\
         "Node process_one_shot method test error"
         assert len(node["node"]._lock_space._lock_names) == len(config.nodelist),\
         "Node process_one_shot method test error"
-        assert len(node["node"]._lock_space._lock_types) == 1,\
+        assert len(node["node"]._lock_space._lock_types) == 0,\
         "Node process_one_shot method test error"
         node["node"]._lock_space.reduce_lock_name()
         assert len(node["node"]._lock_space._lock_names) == 1,\
