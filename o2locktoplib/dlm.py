@@ -297,7 +297,9 @@ class Lock():
         if math.isnan(delta_time):
             hang_type = self._lock_level_2_hang_field(lock_level)
             hang_time = self._get_data_field_indexed(hang_type, -1)
-            return float('inf'), delta_num, float(hang_time)
+            if hang_time:
+                return float('inf'), delta_num, float(hang_time*1000000)
+            return float('inf'), delta_num, 0
         if delta_time and delta_num:
             return delta_time, delta_num, delta_time//delta_num
         return 0, 0, 0
@@ -506,7 +508,7 @@ class LockSet():
         a hang in the lock, then chang the inf to the inf_str string.
         """
         if math.isinf(total_time):
-            total_time_str = str(decimal.Decimal(key_index).quantize(decimal.Decimal('0.')))+'s'+inf_str
+            total_time_str = str(decimal.Decimal(key_index/1000000).quantize(decimal.Decimal('0.')))+'s'+inf_str
             total_num_str = str(decimal.Decimal(total_num).quantize(decimal.Decimal('0.')))
             key_index_str = '--'
         else:
@@ -540,7 +542,8 @@ class LockSet():
 
             if math.isinf(ex_total_time):
                 hang_type = _lock._lock_level_2_hang_field(LOCK_LEVEL_EX)
-                hang_time += _lock._get_data_field_indexed(hang_type, -1)
+                node_hang_time = _lock._get_data_field_indexed(hang_type, -1)
+                hang_time = node_hang_time if node_hang_time > hang_time else hang_time
                 ex_hang_flag = True
             res_ex["total_time"] += ex_total_time
             res_ex["total_num"] += ex_total_num
@@ -554,7 +557,8 @@ class LockSet():
 
             if math.isinf(pr_total_time):
                 hang_type = _lock._lock_level_2_hang_field(LOCK_LEVEL_PR)
-                hang_time += _lock._get_data_field_indexed(hang_type, -1)
+                node_hang_time = _lock._get_data_field_indexed(hang_type, -1)
+                hang_time = node_hang_time if node_hang_time > hang_time else hang_time
                 pr_hang_flag = True
             res_pr["total_time"] += pr_total_time
             res_pr["total_num"] += pr_total_num
@@ -567,7 +571,7 @@ class LockSet():
                 node_detail_format = "{0:21}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
             #temp_index += 1
             node_detail_str = ""
-            if ex_total_num != 0 or pr_total_num != 0:
+            if ex_total_num != 0 or pr_total_num != 0 or pr_total_time != 0 or ex_total_time:
                 node_detail_str = node_detail_format.format(
                     "├─"+node_name,
                     ex_total_num_str, ex_total_time_str, ex_key_index_str,
@@ -579,13 +583,14 @@ class LockSet():
                     pr_total_num, pr_total_time, pr_key_index)
                 '''
 
-            tmp_index = node_detail_str.rfind("├─")
             if node_detail_str != "":
-                node_detail_str = node_detail_str[:tmp_index] + "└─" + node_detail_str[tmp_index+6:]
                 if body == "":
                     body = node_detail_str
                 else:
                     body = "\n".join([body, node_detail_str])
+
+        tmp_index = body.rfind("├─")
+        body = body[:tmp_index] + "└─" + body[tmp_index+6:]
 
         if res_ex["total_num"] != 0:
             res_ex["key_index"] = res_ex["total_time"]//res_ex["total_num"]
@@ -597,10 +602,10 @@ class LockSet():
         title_format = LockSetGroup.DATA_FORMAT
         ex_total_time_str, ex_total_num_str, ex_key_index_str = \
             self._change_float_to_str(res_ex["total_time"], res_ex["total_num"],
-                                      hang_time if ex_hang_flag else res_ex["key_index"], '(hang)')
+                                      hang_time*1000000 if ex_hang_flag else res_ex["key_index"], '(hang)')
         pr_total_time_str, pr_total_num_str, pr_key_index_str = \
             self._change_float_to_str(res_pr["total_time"] , res_pr["total_num"],
-                                      hang_time if pr_hang_flag else res_pr["key_index"], '(hang)')
+                                      hang_time*1000000 if pr_hang_flag else res_pr["key_index"], '(hang)')
         title = title_format.format(
             self.name.short_name,
             ex_total_num_str, ex_total_time_str, ex_key_index_str,
