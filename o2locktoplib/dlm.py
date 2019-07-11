@@ -9,6 +9,8 @@ classify and statistics the locks of the cluster
 import threading
 import time
 import os
+import decimal
+import math
 from o2locktoplib import util
 from o2locktoplib import config
 from o2locktoplib import cat
@@ -115,17 +117,25 @@ class Shot:
         ("lock_num_exmode_failed", 1),
         ("lock_total_prmode", 1), #unit ns
         ("lock_total_exmode", 1), #unit ns
+        ("lock_max_prmode", 1), #unit ns
         ("lock_max_exmode", 1), #unit ns
         ("lock_refresh", 1),
+    )
+
+    debug_format_v4 = debug_format_v3 + (
+        ("lock_last_prmode", 1),
+        ("lock_last_exmode", 1),
+        ("lock_wait", 1),
     )
 
     def __init__(self, source_str):
         self.source = source_str.strip()
         strings = source_str.strip().split()
-        debug_ver = int(strings[0].lstrip("0x"))
-        assert(debug_ver == 3 or debug_ver == 4)
+        self.debug_ver = int(strings[0].lstrip("0x"))
+        assert(self.debug_ver == 3 or self.debug_ver == 4)
+        self.debug_format = Shot.debug_format_v3 if self.debug_ver == 3 else Shot.debug_format_v4
         i = 0
-        for item in Shot.debug_format_v3:
+        for item in self.debug_format:
             # key, value = item[0], item[1]
             var_name = item[0]
             var_len = item[1]
@@ -133,13 +143,30 @@ class Shot:
             setattr(self, var_name, value)
             i += var_len
         self.name = LockName(self.name)
+        self.check_hang()
+
+    def check_hang(self):
+        """
+        According current timestamp to judge if the lock is hanged
+        If hanged, set the lock_total_prmode and lock_total_exmode to inf
+        """
+        if self.lock_wait == '0':
+            return
+        hang_time = int(time.time()) - int(self.lock_wait)/1000000
+        if hang_time > config.INTERVAL:
+            if self.l_requested == '3':
+                self.lock_total_prmode = float('inf')
+                self.lock_prmode_hang_time = hang_time
+            if self.l_requested == '5':
+                self.lock_total_exmode = float('inf')
+                self.lock_exmode_hang_time = hang_time
 
     def __str__(self):
         """
         Put the shot by a friendly format
         """
         ret = []
-        keys = [i[0] for i in Shot.debug_format_v3]
+        keys = [i[0] for i in self.debug_format]
         for k in keys:
             value = getattr(self, k)
             ret.append("{0} : {1}".format(k, value))
@@ -267,6 +294,10 @@ class Lock():
         if delta_time < 0 or delta_num < 0:
             delta_time = self._get_latest_data_field_delta_abs(total_time_field)//ratio
             delta_num = self._get_latest_data_field_delta_abs(total_num_field)
+        if math.isnan(delta_time):
+            hang_type = self._lock_level_2_hang_field(lock_level)
+            hang_time = self._get_data_field_indexed(hang_type, -1)
+            return float('inf'), delta_num, float(hang_time)
         if delta_time and delta_num:
             return delta_time, delta_num, delta_time//delta_num
         return 0, 0, 0
@@ -369,7 +400,9 @@ class Lock():
             return 0
         latter = self._get_data_field_indexed(data_field, -1)
         former = self._get_data_field_indexed(data_field, -2)
-        return int(latter) - int(former)
+        if math.isinf(float(latter)) or math.isinf(float(former)):
+            return float('inf')
+        return float(latter) - float(former)
 
     def _get_latest_data_field_delta_abs(self, data_field):
         '''
@@ -384,6 +417,7 @@ class Lock():
     def _lock_level_2_field(self, lock_level):
         """
         According the lock_level return two relative strings
+        lock_level include 2 type, ex lock and pr lock
         """
         if lock_level == LOCK_LEVEL_PR:
             total_time_field = "lock_total_prmode"
@@ -394,6 +428,18 @@ class Lock():
         else:
             return None, None
         return total_time_field, total_num_field
+
+    def _lock_level_2_hang_field(self, lock_level):
+        """
+        According the lock_level return lock_prmode_hang_time
+        or lock_exmode_hang_time
+        """
+        if lock_level == LOCK_LEVEL_PR:
+            return 'lock_prmode_hang_time'
+        elif lock_level == LOCK_LEVEL_EX:
+            return 'lock_exmode_hang_time'
+        else:
+            return None
 
 class LockSet():
     """
@@ -453,6 +499,22 @@ class LockSet():
         assert lock.node not in self.node_to_lock_dict
         self.node_to_lock_dict[lock.node] = lock
 
+    def _change_float_to_str(self, total_time, total_num, key_index, inf_str):
+        """
+        This function is to change the three mian number that will be showed on screen
+        to int type str, and if some of the three number is inf, it represent there is
+        a hang in the lock, then chang the inf to the inf_str string.
+        """
+        if math.isinf(total_time):
+            total_time_str = str(decimal.Decimal(key_index).quantize(decimal.Decimal('0.')))+'s'+inf_str
+            total_num_str = str(decimal.Decimal(total_num).quantize(decimal.Decimal('0.')))
+            key_index_str = '--'
+        else:
+            total_time_str = str(decimal.Decimal(total_time).quantize(decimal.Decimal('0.')))
+            total_num_str = str(decimal.Decimal(total_num).quantize(decimal.Decimal('0.')))
+            key_index_str = str(decimal.Decimal(key_index).quantize(decimal.Decimal('0.')))
+        return total_time_str, total_num_str, key_index_str
+
     def report_once(self):
         """
         According to self.node_to_lock_dict splice the simple and detailed string
@@ -466,11 +528,20 @@ class LockSet():
 
         node_to_lock_dict_len = len(self.node_to_lock_dict)
         #temp_index = 0
+        hang_time = 0
+        pr_hang_flag = False
+        ex_hang_flag = False
         for _node, _lock in self.node_to_lock_dict.items():
 
             ex_total_time, ex_total_num, ex_key_index = \
                     _lock.get_lock_level_info(LOCK_LEVEL_EX, unit='ns')
+            ex_total_time_str, ex_total_num_str, ex_key_index_str = \
+                self._change_float_to_str(ex_total_time, ex_total_num, ex_key_index, '(hang)')
 
+            if math.isinf(ex_total_time):
+                hang_type = _lock._lock_level_2_hang_field(LOCK_LEVEL_EX)
+                hang_time += _lock._get_data_field_indexed(hang_type, -1)
+                ex_hang_flag = True
             res_ex["total_time"] += ex_total_time
             res_ex["total_num"] += ex_total_num
             config.ex_locks += ex_total_num
@@ -478,7 +549,13 @@ class LockSet():
 
             pr_total_time, pr_total_num, pr_key_index = \
                     _lock.get_lock_level_info(LOCK_LEVEL_PR, unit='ns')
+            pr_total_time_str, pr_total_num_str, pr_key_index_str = \
+                self._change_float_to_str(pr_total_time, pr_total_num, pr_key_index, '(hang)')
 
+            if math.isinf(pr_total_time):
+                hang_type = _lock._lock_level_2_hang_field(LOCK_LEVEL_PR)
+                hang_time += _lock._get_data_field_indexed(hang_type, -1)
+                pr_hang_flag = True
             res_pr["total_time"] += pr_total_time
             res_pr["total_num"] += pr_total_num
             config.pr_locks += pr_total_num
@@ -493,8 +570,8 @@ class LockSet():
             if ex_total_num != 0 or pr_total_num != 0:
                 node_detail_str = node_detail_format.format(
                     "├─"+node_name,
-                    ex_total_num, ex_total_time, ex_key_index,
-                    pr_total_num, pr_total_time, pr_key_index)
+                    ex_total_num_str, ex_total_time_str, ex_key_index_str,
+                    pr_total_num_str, pr_total_time_str, pr_key_index_str)
                 '''
                 node_detail_str = node_detail_format.format(
                     "└─"+node_name,
@@ -518,11 +595,20 @@ class LockSet():
 
 
         title_format = LockSetGroup.DATA_FORMAT
+        ex_total_time_str, ex_total_num_str, ex_key_index_str = \
+            self._change_float_to_str(res_ex["total_time"], res_ex["total_num"],
+                                      hang_time if ex_hang_flag else res_ex["key_index"], '(hang)')
+        pr_total_time_str, pr_total_num_str, pr_key_index_str = \
+            self._change_float_to_str(res_pr["total_time"] , res_pr["total_num"],
+                                      hang_time if pr_hang_flag else res_pr["key_index"], '(hang)')
         title = title_format.format(
             self.name.short_name,
-            res_ex["total_num"], res_ex["total_time"], res_ex["key_index"],
-            res_pr["total_num"], res_pr["total_time"], res_pr["key_index"])
-        lock_set_summary = '\n'.join([title, body])
+            ex_total_num_str, ex_total_time_str, ex_key_index_str,
+            pr_total_num_str, pr_total_time_str, pr_key_index_str)
+        if body != "":
+            lock_set_summary = '\n'.join([title, body])
+        else:
+            lock_set_summary = title
 
         return {'simple':title, "detailed":lock_set_summary}
 
