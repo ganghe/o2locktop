@@ -20,7 +20,7 @@ Before exit or after crash, the process will recovery the terminal.
 
 The lock_space process maintains several threads which keep collecting ocfs2 lock from multiple nodes.
 
-Once a thread gathered all lock info from one Node, it translates the raw lock string to multiple Shot(s). Shot is a python class, defined in file `o2locktoplib/dlm.py`. The same as Node, Lock, LockSet, LockSetGroup. Each Shot corresponds to a dlm lock ID.
+Once a thread gathered all lock info from one Node, it translates the raw lock string to multiple Shot(s). Shot is a python class, defined in file `o2locktoplib/dlm.py`, same as Node, Lock, LockSet, LockSetGroup. Each Shot corresponds to a dlm lock ID.
 
 Each thread collects data from the node at regular intervals. Then according the Shot's lock id, pushing the Shots that with same id to class Lock.
 
