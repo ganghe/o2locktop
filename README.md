@@ -71,21 +71,16 @@ Note: o2locktop is Python 2 and Python 3 compatible.
 - Or, check the asciidemo [here][o2locktop_demo]
 
 - Known limitations
-  1. Since OCFS2 file system statistics in kernel calculation starts when
-     applying for DLM lock and ends when it returns. If it never returns due to
-the deadlock because of a bug just in case, o2locktop does not reflect this
-situation currently.
 
-  2. o2locktop can't display the file names of the inode. The additional step
-     is needed to translate inode to the file name.
+  o2locktop can't display the file name of the inode number. The additional step is needed to translate the inode number to the file name.
 ```shell
-     find <YOUR_OCFS2_MOUNT_POINT> -inum <INODE_NUMBER>
+  find <YOUR_OCFS2_MOUNT_POINT> -inum <INODE_NUMBER>
 ```
 
 ### TODO
 
 - Replay o2locktop log file.  
-- Inside of the cluster, o2lockto can run without any argument.
+- In SUSE-based ocfs2 cluster, o2locktop can run without any arguments.
 - unittest
 
 ### Community
@@ -110,7 +105,7 @@ It is a top-like tool to monitor OCFS2 DLM lock usage in the cluster, and can
 be used to detect hot files/directories, which intensively acquire DLM locks.
 
 positional arguments:
-  MOUNT_POINT        the OCFS2 mount point, eg. /mnt/shared
+  MOUNT_POINT        OCFS2 mount point, e.g. /mnt/shared
 
 optional arguments:
   -h, --help         show this help message and exit
@@ -164,7 +159,7 @@ EXAMPLES:
 
     o2locktop -n node1 -n node2 -n node3 /mnt/shared
 
-    To find the absolute path of the inode file:
+    To find the absolute path according to the inode number:
     find <MOUNT_POINT> -inum <INO>
 
 ``` 

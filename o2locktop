@@ -102,7 +102,7 @@ EXAMPLES:
 
     o2locktop -n node1 -n node2 -n node3 /mnt/shared
 
-    To find the absolute path of the inode file:
+    To find the absolute path according to the inode number:
     find <MOUNT_POINT> -inum <INO>
  
 """
@@ -133,7 +133,7 @@ EXAMPLES:
                         help='show all the inode including the system inode number')
 
     parser.add_argument('mount_point', metavar='MOUNT_POINT', nargs='?',
-                        help='the OCFS2 mount point, eg. /mnt/shared')
+                        help='OCFS2 mount point, e.g. /mnt/shared')
 
     args = parser.parse_args(args=args)
 
