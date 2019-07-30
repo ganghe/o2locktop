@@ -592,7 +592,7 @@ class LockSet():
                     body = "\n".join([body, node_detail_str])
 
         tmp_index = body.rfind("├─")
-        body = body[:tmp_index] + "└─" + body[tmp_index+6:]
+        body = body[:tmp_index] + "└─" + body[tmp_index+len("└─"):]
 
         if res_ex["total_num"] != 0:
             res_ex["key_index"] = res_ex["total_time"]//res_ex["total_num"]
