@@ -514,9 +514,9 @@ class LockSet():
             total_num_str = str(decimal.Decimal(total_num).quantize(decimal.Decimal('0.')))
             key_index_str = '--'
         else:
-            total_time_str = str(decimal.Decimal(total_time).quantize(decimal.Decimal('0.')))
-            total_num_str = str(decimal.Decimal(total_num).quantize(decimal.Decimal('0.')))
-            key_index_str = str(decimal.Decimal(key_index).quantize(decimal.Decimal('0.')))
+            total_time_str = str(decimal.Decimal(str(total_time)).quantize(decimal.Decimal('0.')))
+            total_num_str = str(decimal.Decimal(str(total_num)).quantize(decimal.Decimal('0.')))
+            key_index_str = str(decimal.Decimal(str(key_index)).quantize(decimal.Decimal('0.')))
         return total_time_str, total_num_str, key_index_str
 
     def report_once(self):
